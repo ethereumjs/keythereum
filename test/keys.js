@@ -16,7 +16,7 @@ var ethKeys = require("../");
 var privateKey = crypto.randomBytes(32);
 
 // timeout for asynchronous unit tests
-var TIMEOUT = 12000;
+var TIMEOUT = 48000;
 
 ethKeys.create();
 

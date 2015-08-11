@@ -2,10 +2,9 @@ language: node_js
 node_js:
   - "0.12"
   - "0.11"
-  - "0.10"
 before_script:
   - npm install
   - npm install jshint mocha
 script:
   - npm run lint
-  - istanbul cover ./node_modules/mocha/bin/_mocha test --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
+  - istanbul -x **/lib/** cover ./node_modules/mocha/bin/_mocha test --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
