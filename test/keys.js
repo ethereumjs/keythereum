@@ -10,21 +10,22 @@ var assert = require("chai").assert;
 var validator = require("validator");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var ecdsa = new (require("elliptic").ec)("secp256k1");
-var EthKeys = require("../");
-var log = console.log;
+var ethKeys = require("../");
 
 // create private key, get public key and address
 var privateKey = crypto.randomBytes(32);
 
 // timeout for asynchronous unit tests
-var TIMEOUT = 120000;
+var TIMEOUT = 12000;
+
+ethKeys.create();
 
 describe("Crypto", function () {
+
     var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
     var address = pubToAddress(publicKey).toString("hex");
 
-    // user specified handle and password
-    var handle = "tinybike";
+    // user specified password
     var password = "wheethereum";
 
     // password used as secret key for aes-256 cipher
@@ -42,11 +43,11 @@ describe("Crypto", function () {
     });    
 
     it("derive address from private key", function () {
-        assert.strictEqual(EthKeys.privateKeyToAddress(privateKey), "0x" + address);
+        assert.strictEqual(ethKeys.privateKeyToAddress(privateKey), "0x" + address);
     });
 
     it("generate random 256-bit private key & salt, 128-bit initialization vector", function () {
-        var plaintext = EthKeys.create();
+        var plaintext = ethKeys.create();
         assert.property(plaintext, "privateKey");
         assert.isNotNull(plaintext.privateKey);
         assert.property(plaintext, "iv");
@@ -65,7 +66,7 @@ describe("Key derivation", function () {
     var test = function (t) {
         it("[sync] " + t.input.kdf, function () {
             this.timeout(TIMEOUT);
-            var derivedKey = EthKeys.deriveKey(
+            var derivedKey = ethKeys.deriveKey(
                 t.input.password,
                 t.input.salt,
                 t.input.kdf
@@ -75,7 +76,7 @@ describe("Key derivation", function () {
         if (t.input.kdf !== "scrypt") {
             it("[async] " + t.input.kdf, function (done) {
                 this.timeout(TIMEOUT);
-                EthKeys.deriveKey(
+                ethKeys.deriveKey(
                     t.input.password,
                     t.input.salt,
                     t.input.kdf,
@@ -116,7 +117,7 @@ describe("Message authentication code", function () {
 
     var test = function (t) {
         it("convert " + JSON.stringify(t.input) + " -> " + t.output, function () {
-            var mac = EthKeys.getMAC(t.input.derivedKey, t.input.ciphertext);
+            var mac = ethKeys.getMAC(t.input.derivedKey, t.input.ciphertext);
             assert.strictEqual(mac, t.output);
         });
     };
@@ -143,44 +144,47 @@ describe("Dump private key", function () {
 
     function validate(json) {
         assert.instanceOf(json, Object);
-        assert.property(json, "crypto");
-        assert.instanceOf(json.crypto, Object);
-        assert.property(json.crypto, "cipher");
-        assert(json.crypto.cipher === "aes-128-ctr"
-            || json.crypto.cipher === "aes-128-cbc");
-        assert.property(json.crypto, "cipherparams");
-        assert.instanceOf(json.crypto.cipherparams, Object);
-        assert.property(json.crypto.cipherparams, "iv");
-        assert.strictEqual(json.crypto.cipherparams.iv.length, 32);
-        assert.property(json.crypto, "ciphertext");
-        assert.strictEqual(json.crypto.ciphertext.length, 64);
-        assert.isTrue(validator.isHexadecimal(json.crypto.ciphertext));
-        assert.property(json.crypto, "kdf");
-        assert(json.crypto.kdf === "pbkdf2" || json.crypto.kdf === "scrypt");
-        assert.property(json.crypto, "kdfparams");
-        assert.instanceOf(json.crypto.kdfparams, Object);
-        if (json.crypto.kdf === "pbkdf2") {
-            assert.property(json.crypto.kdfparams, "c");
-            assert.property(json.crypto.kdfparams, "prf");
-            assert.strictEqual(json.crypto.kdfparams.c, 262144);
-            assert.strictEqual(json.crypto.kdfparams.prf, "hmac-sha256");
+        assert.property(json, "address");
+        assert.property(json, "Crypto");
+        assert.instanceOf(json.Crypto, Object);
+        assert.property(json.Crypto, "cipher");
+        assert(
+            json.Crypto.cipher === "aes-128-ctr" ||
+            json.Crypto.cipher === "aes-128-cbc"
+        );
+        assert.property(json.Crypto, "cipherparams");
+        assert.instanceOf(json.Crypto.cipherparams, Object);
+        assert.property(json.Crypto.cipherparams, "iv");
+        assert.strictEqual(json.Crypto.cipherparams.iv.length, 32);
+        assert.property(json.Crypto, "ciphertext");
+        assert.strictEqual(json.Crypto.ciphertext.length, 64);
+        assert.isTrue(validator.isHexadecimal(json.Crypto.ciphertext));
+        assert.property(json.Crypto, "kdf");
+        assert(json.Crypto.kdf === "pbkdf2" || json.Crypto.kdf === "scrypt");
+        assert.property(json.Crypto, "kdfparams");
+        assert.instanceOf(json.Crypto.kdfparams, Object);
+        if (json.Crypto.kdf === "pbkdf2") {
+            assert.property(json.Crypto.kdfparams, "c");
+            assert.property(json.Crypto.kdfparams, "prf");
+            assert.strictEqual(json.Crypto.kdfparams.c, 262144);
+            assert.strictEqual(json.Crypto.kdfparams.prf, "hmac-sha256");
         } else {
-            assert.property(json.crypto.kdfparams, "n");
-            assert.property(json.crypto.kdfparams, "r");
-            assert.property(json.crypto.kdfparams, "p");
-            assert.strictEqual(json.crypto.kdfparams.n, 262144);
-            assert.strictEqual(json.crypto.kdfparams.r, 1);
-            assert.strictEqual(json.crypto.kdfparams.p, 8);
+            assert.property(json.Crypto.kdfparams, "n");
+            assert.property(json.Crypto.kdfparams, "r");
+            assert.property(json.Crypto.kdfparams, "p");
+            assert.strictEqual(json.Crypto.kdfparams.n, 262144);
+            assert.strictEqual(json.Crypto.kdfparams.r, 1);
+            assert.strictEqual(json.Crypto.kdfparams.p, 8);
         }
-        assert.property(json.crypto.kdfparams, "dklen");
-        assert.isNumber(json.crypto.kdfparams.dklen);
-        assert(json.crypto.kdfparams.dklen >= 32);
-        assert.property(json.crypto.kdfparams, "salt");
-        assert(json.crypto.kdfparams.salt.length >= 32);
-        assert.isTrue(validator.isHexadecimal(json.crypto.kdfparams.salt));
-        assert.property(json.crypto, "mac");
-        assert.strictEqual(json.crypto.mac.length, 64);
-        assert.isTrue(validator.isHexadecimal(json.crypto.mac));
+        assert.property(json.Crypto.kdfparams, "dklen");
+        assert.isNumber(json.Crypto.kdfparams.dklen);
+        assert(json.Crypto.kdfparams.dklen >= 32);
+        assert.property(json.Crypto.kdfparams, "salt");
+        assert(json.Crypto.kdfparams.salt.length >= 32);
+        assert.isTrue(validator.isHexadecimal(json.Crypto.kdfparams.salt));
+        assert.property(json.Crypto, "mac");
+        assert.strictEqual(json.Crypto.mac.length, 64);
+        assert.isTrue(validator.isHexadecimal(json.Crypto.mac));
         assert.property(json, "id");
         assert.strictEqual(json.id.length, 36);
         assert.isTrue(validator.isUUID(json.id));
@@ -191,7 +195,7 @@ describe("Dump private key", function () {
     var test = function (t) {
         it(t.input.kdf, function (done) {
             this.timeout(TIMEOUT);
-            EthKeys.dumpPrivateKey(
+            ethKeys.dump(
                 t.input.password,
                 t.input.privateKey,
                 t.input.salt,
@@ -202,88 +206,89 @@ describe("Dump private key", function () {
                         done(json);
                     } else {
                         validate(json);
+                        assert.strictEqual(json.address, t.expected.address);
                         assert.strictEqual(
-                            json.crypto.cipher,
-                            EthKeys.constants.cipher
+                            json.Crypto.cipher,
+                            ethKeys.constants.cipher
                         );
                         assert.strictEqual(
-                            json.crypto.cipher,
-                            t.expected.crypto.cipher
+                            json.Crypto.cipher,
+                            t.expected.Crypto.cipher
                         );
                         assert.strictEqual(
-                            json.crypto.cipherparams.iv,
+                            json.Crypto.cipherparams.iv,
                             t.input.iv.toString("hex")
                         );
                         assert.strictEqual(
-                            json.crypto.cipherparams.iv,
-                            t.expected.crypto.cipherparams.iv
+                            json.Crypto.cipherparams.iv,
+                            t.expected.Crypto.cipherparams.iv
                         );
                         assert.strictEqual(
-                            json.crypto.ciphertext,
-                            t.expected.crypto.ciphertext
+                            json.Crypto.ciphertext,
+                            t.expected.Crypto.ciphertext
                         );
                         assert.strictEqual(
-                            json.crypto.kdf,
-                            t.expected.crypto.kdf
+                            json.Crypto.kdf,
+                            t.expected.Crypto.kdf
                         );
                         if (t.input.kdf === "scrypt") {
                             assert.strictEqual(
-                                json.crypto.kdfparams.n,
-                                t.expected.crypto.kdfparams.n
+                                json.Crypto.kdfparams.n,
+                                t.expected.Crypto.kdfparams.n
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.n,
-                                EthKeys.constants.scrypt.n
+                                json.Crypto.kdfparams.n,
+                                ethKeys.constants.scrypt.n
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.r,
-                                t.expected.crypto.kdfparams.r
+                                json.Crypto.kdfparams.r,
+                                t.expected.Crypto.kdfparams.r
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.r,
-                                EthKeys.constants.scrypt.r
+                                json.Crypto.kdfparams.r,
+                                ethKeys.constants.scrypt.r
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.p,
-                                t.expected.crypto.kdfparams.p
+                                json.Crypto.kdfparams.p,
+                                t.expected.Crypto.kdfparams.p
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.p,
-                                EthKeys.constants.scrypt.p
+                                json.Crypto.kdfparams.p,
+                                ethKeys.constants.scrypt.p
                             );
                         } else {
                             assert.strictEqual(
-                                json.crypto.kdfparams.c,
-                                t.expected.crypto.kdfparams.c
+                                json.Crypto.kdfparams.c,
+                                t.expected.Crypto.kdfparams.c
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.c,
-                                EthKeys.constants.pbkdf2.c
+                                json.Crypto.kdfparams.c,
+                                ethKeys.constants.pbkdf2.c
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.prf,
-                                t.expected.crypto.kdfparams.prf
+                                json.Crypto.kdfparams.prf,
+                                t.expected.Crypto.kdfparams.prf
                             );
                             assert.strictEqual(
-                                json.crypto.kdfparams.prf,
-                                EthKeys.constants.pbkdf2.prf
+                                json.Crypto.kdfparams.prf,
+                                ethKeys.constants.pbkdf2.prf
                             );
                         }
                         assert.strictEqual(
-                            json.crypto.kdfparams.dklen,
-                            t.expected.crypto.kdfparams.dklen
+                            json.Crypto.kdfparams.dklen,
+                            t.expected.Crypto.kdfparams.dklen
                         );
                         assert.strictEqual(
-                            json.crypto.kdfparams.dklen,
-                            EthKeys.constants.pbkdf2.dklen
+                            json.Crypto.kdfparams.dklen,
+                            ethKeys.constants.pbkdf2.dklen
                         );
                         assert.strictEqual(
-                            json.crypto.kdfparams.salt,
-                            t.expected.crypto.kdfparams.salt
+                            json.Crypto.kdfparams.salt,
+                            t.expected.Crypto.kdfparams.salt
                         );
                         assert.strictEqual(
-                            json.crypto.mac,
-                            t.expected.crypto.mac
+                            json.Crypto.mac,
+                            t.expected.Crypto.mac
                         );
                         assert.strictEqual(
                             json.version,
@@ -308,7 +313,8 @@ describe("Dump private key", function () {
             kdf: "pbkdf2-sha256"
         },
         expected: {
-            crypto: {
+            address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+            Crypto: {
                 cipher: "aes-128-ctr",
                 cipherparams: {
                     iv: "6087dab2f9fdbbfaddc31a909735c1e6"
@@ -336,7 +342,8 @@ describe("Dump private key", function () {
             kdf: "scrypt"
         },
         expected: {
-            crypto: {
+            address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+            Crypto: {
                 cipher: "aes-128-ctr",
                 cipherparams: {
                     iv: "83dbcc02d8ccb40e466191a123791e0e"
@@ -354,6 +361,39 @@ describe("Dump private key", function () {
             },
             version: 3
         }
+    });
+
+});
+
+describe("Export to file", function () {
+
+    var json = {
+        address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+        Crypto: {
+            cipher: "aes-128-ctr",
+            ciphertext: "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+            cipherparams: {
+                iv: "6087dab2f9fdbbfaddc31a909735c1e6"
+            },
+            mac: "517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2",
+            kdf: "pbkdf2",
+            kdfparams: {
+                c: 262144,
+                dklen: 32,
+                prf: "hmac-sha256",
+                salt: "ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd"
+            }
+        },
+        id: "e13b209c-3b2f-4327-bab0-3bef2e51630d",
+        version: 3
+    };
+
+    it("export key to json file", function (done) {
+        ethKeys.exportToFile(json, function (outfile) {
+            assert.strictEqual(outfile.slice(0, 5), "UTC--");
+            assert.isAbove(outfile.indexOf(json.address), -1);
+            done();
+        });
     });
 
 });

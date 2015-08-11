@@ -1,6 +1,6 @@
 {
   "name": "ethereumjs-keys",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Import and export Ethereum keys",
   "main": "index.js",
   "directories": {
@@ -8,7 +8,8 @@
     "lib": "lib"
   },
   "scripts": {
-    "test": "mocha test/keys.js"
+    "test": "mocha test/keys.js",
+    "lint": "jshint index.js && jshint test"
   },
   "repository": {
     "type": "git",

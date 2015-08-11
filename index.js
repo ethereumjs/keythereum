@@ -288,27 +288,12 @@ module.exports = {
      * @param {function=} cb Callback function (optional).
      * @return {Object}
      */
-    dumpPrivateKey: function (password, privateKey, salt, iv, kdf, cb) {
+    dump: function (password, privateKey, salt, iv, kdf, cb) {
         var self = this;
 
-        if (iv.constructor === String) {
-            if (validator.isHexadecimal(iv)) {
-                iv = new Buffer(iv, "hex");
-            } else if (validator.isBase64(iv)) {
-                iv = new Buffer(iv, "base64");
-            } else {
-                iv = new Buffer(iv);
-            }
-        }
-        if (privateKey.constructor === String) {
-            if (validator.isHexadecimal(privateKey)) {
-                privateKey = new Buffer(privateKey, "hex");
-            } else if (validator.isBase64(privateKey)) {
-                privateKey = new Buffer(privateKey, "base64");
-            } else {
-                privateKey = new Buffer(privateKey);
-            }
-        }
+        if (iv.constructor === String) iv = this.str2buf(iv);
+        if (privateKey.constructor === String) 
+            privateKey = this.str2buf(privateKey);
 
         var derivedKey = self.deriveKey(password, salt, kdf);
 
@@ -329,11 +314,11 @@ module.exports = {
         var id = uuid.v4();
 
         // ethereum address
-        var address = self.privateKeyToAddress(privateKey);
+        var address = self.privateKeyToAddress(privateKey).slice(2);
 
         var json = {
             address: address,
-            crypto: {
+            Crypto: {
                 cipher: self.constants.cipher,
                 ciphertext: ciphertext,
                 cipherparams: { iv: iv.toString("hex") },
@@ -343,8 +328,8 @@ module.exports = {
             version: 3
         };
         if (kdf === "scrypt") {
-            json.crypto.kdf = "scrypt";
-            json.crypto.kdfparams = {
+            json.Crypto.kdf = "scrypt";
+            json.Crypto.kdfparams = {
                 dklen: self.constants.scrypt.dklen,
                 n: self.constants.scrypt.n,
                 r: self.constants.scrypt.r,
@@ -352,8 +337,8 @@ module.exports = {
                 salt: salt
             };
         } else {
-            json.crypto.kdf = "pbkdf2";
-            json.crypto.kdfparams = {
+            json.Crypto.kdf = "pbkdf2";
+            json.Crypto.kdfparams = {
                 c: self.constants.pbkdf2.c,
                 dklen: self.constants.pbkdf2.dklen,
                 prf: self.constants.pbkdf2.prf,
@@ -368,13 +353,37 @@ module.exports = {
     },
 
     /**
+     * Export formatted JSON to keystore file.
+     * (Note: Node.js only!)
+     * @param {Object} json Keystore object.
+     * @param {function=} cb Callback function (optional).
+     * @return {Object}
+     */
+    exportToFile: function (json, cb) {
+        var outfile = "UTC--" + new Date().toISOString() + "--" + json.address;
+        require("fs").writeFile(
+            "keystore/" + outfile,
+            JSON.stringify(json),
+            function (ex) {
+                if (ex) throw ex;
+                console.log("Saved to file:\nkeystore/" + outfile);
+                console.log(
+                    "To use with geth, copy this file to your Ethereum "+
+                    "keystore folder (usually ~/.ethereum/keystore)."
+                );
+                if (cb && cb.constructor === Function) cb(outfile);
+            }
+        );
+    }
+
+    /**
      * Import private key from keystore secret-storage format.
      * @param {Object} json Keystore object.
      * @param {function=} cb Callback function (optional).
      * @return {Object}
      */
-    loadPrivateKey: function (json, cb) {
+    // loadPrivateKey: function (json, cb) {
 
-    }
+    // }
 
 };
