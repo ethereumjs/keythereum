@@ -1,0 +1,36 @@
+{
+  "name": "ethereumjs-keys",
+  "version": "0.0.1",
+  "description": "Import and export Ethereum keys",
+  "main": "index.js",
+  "directories": {
+    "test": "test",
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "mocha test/keys.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AugurProject/ethereumjs-keys.git"
+  },
+  "author": "Jack Peterson <jack@tinybike.net>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AugurProject/ethereumjs-keys/issues"
+  },
+  "homepage": "https://github.com/AugurProject/ethereumjs-keys#readme",
+  "dependencies": {
+    "crypto-browserify": "^3.9.14",
+    "elliptic": "^5.1.0",
+    "ethereumjs-util": "^1.3.6",
+    "node-uuid": "^1.4.3",
+    "validator": "^4.0.2"
+  },
+  "devDependencies": {
+    "chai": "^3.2.0",
+    "coveralls": "^2.11.3",
+    "istanbul": "^0.3.17",
+    "mocha": "^2.2.5"
+  }
+}
