@@ -10,7 +10,7 @@ var assert = require("chai").assert;
 var validator = require("validator");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var ecdsa = new (require("elliptic").ec)("secp256k1");
-var ethKeys = require("../");
+var keythereum = require("../");
 
 // create private key, get public key and address
 var privateKey = crypto.randomBytes(32);
@@ -18,7 +18,7 @@ var privateKey = crypto.randomBytes(32);
 // timeout for asynchronous unit tests
 var TIMEOUT = 48000;
 
-ethKeys.create();
+keythereum.create();
 
 describe("Crypto", function () {
 
@@ -43,11 +43,14 @@ describe("Crypto", function () {
     });    
 
     it("derive address from private key", function () {
-        assert.strictEqual(ethKeys.privateKeyToAddress(privateKey), "0x" + address);
+        assert.strictEqual(
+            keythereum.privateKeyToAddress(privateKey),
+            "0x" + address
+        );
     });
 
     it("generate random 256-bit private key & salt, 128-bit initialization vector", function () {
-        var plaintext = ethKeys.create();
+        var plaintext = keythereum.create();
         assert.property(plaintext, "privateKey");
         assert.isNotNull(plaintext.privateKey);
         assert.property(plaintext, "iv");
@@ -66,7 +69,7 @@ describe("Key derivation", function () {
     var test = function (t) {
         it("[sync] " + t.input.kdf, function () {
             this.timeout(TIMEOUT);
-            var derivedKey = ethKeys.deriveKey(
+            var derivedKey = keythereum.deriveKey(
                 t.input.password,
                 t.input.salt,
                 t.input.kdf
@@ -76,7 +79,7 @@ describe("Key derivation", function () {
         if (t.input.kdf !== "scrypt") {
             it("[async] " + t.input.kdf, function (done) {
                 this.timeout(TIMEOUT);
-                ethKeys.deriveKey(
+                keythereum.deriveKey(
                     t.input.password,
                     t.input.salt,
                     t.input.kdf,
@@ -119,7 +122,7 @@ describe("Message authentication code", function () {
 
     var test = function (t) {
         it("convert " + JSON.stringify(t.input) + " -> " + t.output, function () {
-            var mac = ethKeys.getMAC(t.input.derivedKey, t.input.ciphertext);
+            var mac = keythereum.getMAC(t.input.derivedKey, t.input.ciphertext);
             assert.strictEqual(mac, t.output);
         });
     };
@@ -197,7 +200,7 @@ describe("Dump private key", function () {
     var test = function (t) {
         it(t.input.kdf, function (done) {
             this.timeout(TIMEOUT);
-            ethKeys.dump(
+            keythereum.dump(
                 t.input.password,
                 t.input.privateKey,
                 t.input.salt,
@@ -211,7 +214,7 @@ describe("Dump private key", function () {
                         assert.strictEqual(json.address, t.expected.address);
                         assert.strictEqual(
                             json.Crypto.cipher,
-                            ethKeys.constants.cipher
+                            keythereum.constants.cipher
                         );
                         assert.strictEqual(
                             json.Crypto.cipher,
@@ -240,7 +243,7 @@ describe("Dump private key", function () {
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.n,
-                                ethKeys.constants.scrypt.n
+                                keythereum.constants.scrypt.n
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.r,
@@ -248,7 +251,7 @@ describe("Dump private key", function () {
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.r,
-                                ethKeys.constants.scrypt.r
+                                keythereum.constants.scrypt.r
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.p,
@@ -256,7 +259,7 @@ describe("Dump private key", function () {
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.p,
-                                ethKeys.constants.scrypt.p
+                                keythereum.constants.scrypt.p
                             );
                         } else {
                             assert.strictEqual(
@@ -265,7 +268,7 @@ describe("Dump private key", function () {
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.c,
-                                ethKeys.constants.pbkdf2.c
+                                keythereum.constants.pbkdf2.c
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.prf,
@@ -273,7 +276,7 @@ describe("Dump private key", function () {
                             );
                             assert.strictEqual(
                                 json.Crypto.kdfparams.prf,
-                                ethKeys.constants.pbkdf2.prf
+                                keythereum.constants.pbkdf2.prf
                             );
                         }
                         assert.strictEqual(
@@ -282,7 +285,7 @@ describe("Dump private key", function () {
                         );
                         assert.strictEqual(
                             json.Crypto.kdfparams.dklen,
-                            ethKeys.constants.pbkdf2.dklen
+                            keythereum.constants.pbkdf2.dklen
                         );
                         assert.strictEqual(
                             json.Crypto.kdfparams.salt,
@@ -393,7 +396,7 @@ describe("Export to file", function () {
     };
 
     it("export key to json file", function (done) {
-        ethKeys.exportToFile(json, function (outfile) {
+        keythereum.exportToFile(json, function (outfile) {
             assert.strictEqual(outfile.slice(0, 5), "UTC--");
             assert.isAbove(outfile.indexOf(json.address), -1);
             done();

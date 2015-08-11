@@ -1,7 +1,7 @@
 {
-  "name": "ethereumjs-keys",
-  "version": "0.0.3",
-  "description": "Import and export Ethereum keys",
+  "name": "keythereum",
+  "version": "0.1.0",
+  "description": "Create, import and export Ethereum keys",
   "main": "index.js",
   "directories": {
     "test": "test",
@@ -13,14 +13,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AugurProject/ethereumjs-keys.git"
+    "url": "git+https://github.com/AugurProject/keythereum.git"
   },
   "author": "Jack Peterson <jack@tinybike.net>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/AugurProject/ethereumjs-keys/issues"
+    "url": "https://github.com/AugurProject/keythereum/issues"
   },
-  "homepage": "https://github.com/AugurProject/ethereumjs-keys#readme",
+  "homepage": "https://github.com/AugurProject/keythereum#readme",
   "dependencies": {
     "crypto-browserify": "^3.9.14",
     "elliptic": "^5.1.0",

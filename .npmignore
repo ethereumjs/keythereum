@@ -4,3 +4,4 @@ node_modules
 .travis.yml
 test
 coverage
+keystore

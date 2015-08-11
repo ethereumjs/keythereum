@@ -1,23 +1,23 @@
-ethereumjs-keys
-===============
+keythereum
+==========
 
-[![Build Status](https://travis-ci.org/AugurProject/ethereumjs-keys.svg?branch=master)](https://travis-ci.org/AugurProject/ethereumjs-keys)
-[![Coverage Status](https://coveralls.io/repos/AugurProject/ethereumjs-keys/badge.svg?branch=master&service=github)](https://coveralls.io/github/AugurProject/ethereumjs-keys?branch=master)
+[![Build Status](https://travis-ci.org/AugurProject/keythereum.svg?branch=master)](https://travis-ci.org/AugurProject/keythereum)
+[![Coverage Status](https://coveralls.io/repos/AugurProject/keythereum/badge.svg?branch=master&service=github)](https://coveralls.io/github/AugurProject/keythereum?branch=master)
 
-[![NPM](https://nodei.co/npm/ethereumjs-keys.png)](https://nodei.co/npm/ethereumjs-keys/)
+[![NPM](https://nodei.co/npm/keythereum.png)](https://nodei.co/npm/keythereum/)
 
 Generate, import and export Ethereum private keys.  Uses PBKDF2 or scrypt key derivation functions.
 
 Installation
 ------------
 
-    $ npm install ethereumjs-keys
+    $ npm install keythereum
 
 Usage
 -----
 
 ```javascript
-var ethKeys = require("ethereumjs-keys");
+var keythereum = require("keythereum");
 
 // User-specified password
 var password = "wheethereum";
@@ -26,7 +26,7 @@ var password = "wheethereum";
 var kdf = "pbkdf2"; // "scrypt" to use the scrypt kdf
 
 // Generate private key and the salt and initialization vector to encrypt it
-var dk = ethKeys.create();
+var dk = keythereum.create();
 // dk:
 {
     privateKey: <Buffer ...>,
@@ -36,7 +36,7 @@ var dk = ethKeys.create();
 
 // Export key data to keystore "secret-storage" format:
 // https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
-var json = ethKeys.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
+var json = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
 // json:
 {
     address: '008aeeda4d805471df9b2a5b0f38a0c3bcba786b',
@@ -60,7 +60,7 @@ var json = ethKeys.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
 }
 
 // In Node, export formatted JSON to file.
-ethKeys.exportToFile(json);
+keythereum.exportToFile(json);
 ```
 After successful key export, you will see a message like:
 ```
