@@ -6,7 +6,11 @@ keythereum
 
 [![NPM](https://nodei.co/npm/keythereum.png)](https://nodei.co/npm/keythereum/)
 
-Generate, import and export Ethereum private keys.  Uses PBKDF2 or scrypt key derivation functions.
+Keythereum is a JavaScript tool to generate, import and export Ethereum keys.  This provides a simple way to use the same account locally and in web wallets.  It can be used for verifiable cold storage wallets.
+
+Keythereum uses the same key derivation functions (PBKDF2-SHA256 or scrypt), symmetric ciphers (AES-128-CTR or AES-128-CBC), and message authentication codes as [geth](https://github.com/ethereum/go-ethereum).  You can export your generated key to file, copy it to your data directory's keystore, and immediately start using it in your local Ethereum client.
+
+Note: key import is not yet implemented.
 
 Installation
 ------------
@@ -19,7 +23,7 @@ Usage
 ```javascript
 var keythereum = require("keythereum");
 ```
-Generate a new secp256k1 ECDSA private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key:
+Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key:
 ```javascript
 var dk = keythereum.create();
 // dk:
@@ -75,6 +79,6 @@ To use with geth, copy this file to your Ethereum keystore folder
 Tests
 -----
 
-Unit tests are in the `test` directory, and are run with mocha.
+Unit tests are in the `test` directory, and should be run with mocha:
 
     $ npm test
