@@ -18,6 +18,31 @@ var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt")(67108864);
 
+function str2buf(str, enc) {
+    if (str.constructor === String) {
+        if (enc) {
+            str = new Buffer(str, enc);
+        } else {
+            if (validator.isHexadecimal(str)) {
+                str = new Buffer(str, "hex");
+            } else if (validator.isBase64(str)) {
+                str = new Buffer(str, "base64");
+            } else {
+                str = new Buffer(str);
+            }
+        }
+    }
+    return str;
+}
+
+function hex2utf16le(input) {
+    var output = '';
+    for (var i = 0, l = input.length; i < l; i += 4) {
+        output += '\\u' + input.slice(i+2, i+4) + input.slice(i, i+2);
+    }
+    return JSON.parse('"' + output + '"');
+}
+
 module.exports = {
 
     constants: {
@@ -46,31 +71,6 @@ module.exports = {
         }
     },
 
-    str2buf: function (str, enc) {
-        if (str.constructor === String) {
-            if (enc) {
-                str = new Buffer(str, enc);
-            } else {
-                if (validator.isHexadecimal(str)) {
-                    str = new Buffer(str, "hex");
-                } else if (validator.isBase64(str)) {
-                    str = new Buffer(str, "base64");
-                } else {
-                    str = new Buffer(str);
-                }
-            }
-        }
-        return str;
-    },
-
-    hex2utf16le: function (input) {
-        var output = '';
-        for (var i = 0, l = input.length; i < l; i += 4) {
-            output += '\\u' + input.slice(i+2, i+4) + input.slice(i, i+2);
-        }
-        return JSON.parse('"' + output + '"');
-    },
-
     /**
      * Symmetric private key encryption using secret (derived) key.
      * @param {string} plaintext Text to be encrypted.
@@ -80,10 +80,13 @@ module.exports = {
      */
     encrypt: function (plaintext, key, iv) {
         var cipher, ciphertext;
-        if (key.constructor === String) key = this.str2buf(key);
-        if (iv.constructor === String) iv = this.str2buf(iv);
+
+        if (key.constructor === String) key = str2buf(key);
+        if (iv.constructor === String) iv = str2buf(iv);
+
         cipher = crypto.createCipheriv(this.constants.cipher, key, iv);
         ciphertext = cipher.update(plaintext, "hex", "base64");
+
         return ciphertext + cipher.final("base64");
     },
 
@@ -96,10 +99,13 @@ module.exports = {
      */
     decrypt: function (ciphertext, key, iv) {
         var decipher, plaintext;
-        if (key.constructor === String) key = this.str2buf(key);
-        if (iv.constructor === String) iv = this.str2buf(iv);
+
+        if (key.constructor === String) key = str2buf(key);
+        if (iv.constructor === String) iv = str2buf(iv);
+
         decipher = crypto.createDecipheriv(this.constants.cipher, key, iv);
         plaintext = decipher.update(ciphertext, "base64", "hex");
+
         return plaintext + decipher.final("hex");
     },
 
@@ -109,17 +115,20 @@ module.exports = {
      * @return {string} Hex-encoded Ethereum address.
      */
     privateKeyToAddress: function (privateKey) {
+
         if (privateKey.constructor === String)
-            privateKey = this.str2buf(privateKey);
-        var pubKey = new Buffer(
+            privateKey = str2buf(privateKey);
+
+        return "0x" + pubToAddress(new Buffer(
             ecdsa.keyFromPrivate(privateKey).getPublic("arr")
-        );
-        return "0x" + pubToAddress(pubKey).toString("hex");
+        )).toString("hex");
     },
 
     /**
      * Calculate message authentication code from secret (derived) key and
-     * encrypted text.
+     * encrypted text.  The MAC is the keccak-256 hash of the byte array
+     * formed by concatenating the second 16 bytes of the derived key with
+     * the ciphertext key's contents.
      * @param {string|buffer} derivedKey Secret key derived from password.
      * @param {string|buffer} ciphertext Text encrypted with secret key.
      * @return {string} Hex-encoded MAC.
@@ -128,14 +137,14 @@ module.exports = {
         if (derivedKey !== undefined && derivedKey !== null &&
             ciphertext !== undefined && ciphertext !== null)
         {
-            if (derivedKey.constructor === Buffer) {
+            if (derivedKey.constructor === Buffer)
                 derivedKey = derivedKey.toString("hex");
-            }
-            if (ciphertext.constructor === Buffer) {
+
+            if (ciphertext.constructor === Buffer)
                 ciphertext = ciphertext.toString("hex");
-            }
+
             return keccak(
-                this.hex2utf16le(derivedKey.slice(32, 64) + ciphertext)
+                hex2utf16le(derivedKey.slice(32, 64) + ciphertext)
             );
         }
     },
@@ -196,7 +205,9 @@ module.exports = {
 
             // use default key derivation function (PBKDF2)
             } else {
+
                 if (cb && cb.constructor === Function) {
+
                     crypto.pbkdf2(
                         password,
                         salt,
@@ -208,6 +219,7 @@ module.exports = {
                             cb(derivedKey);
                         }
                     );
+
                 } else {
                     
                     try {
@@ -280,8 +292,64 @@ module.exports = {
     },
 
     /**
+     * Assemble JSON object in secret-storage format.
+     * @param {string|buffer} derivedKey Password-derived secret key.
+     * @param {string|buffer} privateKey Private key.
+     * @param {string|buffer} salt Randomly generated salt.
+     * @param {string|buffer} iv Initialization vector.
+     * @param {string=} kdf Key derivation function (default: pbkdf2).
+     * @param {function=} cb Callback function (optional).
+     * @return {Object}
+     */
+    jsonMarshal: function(derivedKey, privateKey, salt, iv, kdf) {
+        var ciphertext, json;
+
+        // encryption key: first 16 bytes of derived key
+        ciphertext = new Buffer(this.encrypt(
+            privateKey,
+            derivedKey.slice(0, 16),
+            iv
+        ), "base64").toString("hex");
+
+        json = {
+            address: this.privateKeyToAddress(privateKey).slice(2),
+            Crypto: {
+                cipher: this.constants.cipher,
+                ciphertext: ciphertext,
+                cipherparams: { iv: iv.toString("hex") },
+                mac: this.getMAC(derivedKey, ciphertext)
+            },
+            id: uuid.v4(), // random 128-bit UUID
+            version: 3
+        };
+
+        if (kdf === "scrypt") {
+            json.Crypto.kdf = "scrypt";
+            json.Crypto.kdfparams = {
+                dklen: this.constants.scrypt.dklen,
+                n: this.constants.scrypt.n,
+                r: this.constants.scrypt.r,
+                p: this.constants.scrypt.p,
+                salt: salt
+            };
+
+        } else {
+            json.Crypto.kdf = "pbkdf2";
+            json.Crypto.kdfparams = {
+                c: this.constants.pbkdf2.c,
+                dklen: this.constants.pbkdf2.dklen,
+                prf: this.constants.pbkdf2.prf,
+                salt: salt
+            };
+        }
+
+        return json;
+    },
+
+    /**
      * Export private key to keystore secret-storage format.
      * @param {string|buffer} password User-supplied password.
+     * @param {string|buffer} privateKey Private key.
      * @param {string|buffer} salt Randomly generated salt.
      * @param {string|buffer} iv Initialization vector.
      * @param {string=} kdf Key derivation function (default: pbkdf2).
@@ -289,66 +357,27 @@ module.exports = {
      * @return {Object}
      */
     dump: function (password, privateKey, salt, iv, kdf, cb) {
-        var self = this;
 
-        if (iv.constructor === String) iv = this.str2buf(iv);
-        if (privateKey.constructor === String) 
-            privateKey = this.str2buf(privateKey);
+        if (iv.constructor === String) iv = str2buf(iv);
+        if (privateKey.constructor === String) privateKey = str2buf(privateKey);
 
-        var derivedKey = self.deriveKey(password, salt, kdf);
-
-        // encryption key: first 16 bytes of derived key
-        var ciphertext = new Buffer(self.encrypt(
-            privateKey,
-            derivedKey.slice(0, 16),
-            iv
-        ), "base64").toString("hex");
-
-        // MAC: Keccak hash of the byte array formed by concatenating
-        // the second 16 bytes of the derived key with the ciphertext
-        // key's contents
-        var mac = self.getMAC(derivedKey, ciphertext);
-
-        // ID: random 128-bit UUID given to the secret key (a
-        // privacy-preserving proxy for the secret key's address)
-        var id = uuid.v4();
-
-        // ethereum address
-        var address = self.privateKeyToAddress(privateKey).slice(2);
-
-        var json = {
-            address: address,
-            Crypto: {
-                cipher: self.constants.cipher,
-                ciphertext: ciphertext,
-                cipherparams: { iv: iv.toString("hex") },
-                mac: mac
-            },
-            id: id,
-            version: 3
-        };
-        if (kdf === "scrypt") {
-            json.Crypto.kdf = "scrypt";
-            json.Crypto.kdfparams = {
-                dklen: self.constants.scrypt.dklen,
-                n: self.constants.scrypt.n,
-                r: self.constants.scrypt.r,
-                p: self.constants.scrypt.p,
-                salt: salt
-            };
-        } else {
-            json.Crypto.kdf = "pbkdf2";
-            json.Crypto.kdfparams = {
-                c: self.constants.pbkdf2.c,
-                dklen: self.constants.pbkdf2.dklen,
-                prf: self.constants.pbkdf2.prf,
-                salt: salt
-            };
-        }
+        // asynchronous if callback provided
         if (cb && cb.constructor === Function) {
-            cb(json);
+
+            this.deriveKey(password, salt, kdf, function (derivedKey) {
+                cb(this.jsonMarshal(derivedKey, privateKey, salt, iv, kdf));
+            }.bind(this));
+
+        // synchronous if no callback
         } else {
-            return json;
+
+            return this.jsonMarshal(
+                this.deriveKey(password, salt, kdf),
+                privateKey,
+                salt,
+                iv,
+                kdf
+            );
         }
     },
 

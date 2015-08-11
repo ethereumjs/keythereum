@@ -1,5 +1,5 @@
 /**
- * ethereumjs-keys tests
+ * keythereum unit tests
  * @author Jack Peterson (jack@tinybike.net)
  */
 
@@ -12,7 +12,7 @@ var pubToAddress = require("ethereumjs-util").pubToAddress;
 var ecdsa = new (require("elliptic").ec)("secp256k1");
 var keythereum = require("../");
 
-// create private key, get public key and address
+// create private key
 var privateKey = crypto.randomBytes(32);
 
 // timeout for asynchronous unit tests
@@ -22,6 +22,7 @@ keythereum.create();
 
 describe("Crypto", function () {
 
+    // derive secp256k1 ECDSA public key and address from private key
     var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
     var address = pubToAddress(publicKey).toString("hex");
 
@@ -40,7 +41,7 @@ describe("Crypto", function () {
         var decryptedPrivateKey = decipher.update(encryptedPrivateKey, "base64", "hex");
         decryptedPrivateKey += decipher.final("hex");
         assert.strictEqual(decryptedPrivateKey, privateKey.toString("hex"));
-    });    
+    });
 
     it("derive address from private key", function () {
         assert.strictEqual(
@@ -147,7 +148,7 @@ describe("Message authentication code", function () {
 
 describe("Dump private key", function () {
 
-    function validate(json) {
+    function check_structure(json) {
         assert.instanceOf(json, Object);
         assert.property(json, "address");
         assert.property(json, "Crypto");
@@ -197,113 +198,134 @@ describe("Dump private key", function () {
         assert.strictEqual(json.version, 3);
     }
 
+    function check_values(t, json) {
+        assert.strictEqual(json.address, t.expected.address);
+        assert.strictEqual(
+            json.Crypto.cipher,
+            keythereum.constants.cipher
+        );
+        assert.strictEqual(
+            json.Crypto.cipher,
+            t.expected.Crypto.cipher
+        );
+        assert.strictEqual(
+            json.Crypto.cipherparams.iv,
+            t.input.iv.toString("hex")
+        );
+        assert.strictEqual(
+            json.Crypto.cipherparams.iv,
+            t.expected.Crypto.cipherparams.iv
+        );
+        assert.strictEqual(
+            json.Crypto.ciphertext,
+            t.expected.Crypto.ciphertext
+        );
+        assert.strictEqual(
+            json.Crypto.kdf,
+            t.expected.Crypto.kdf
+        );
+        if (t.input.kdf === "scrypt") {
+            assert.strictEqual(
+                json.Crypto.kdfparams.n,
+                t.expected.Crypto.kdfparams.n
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.n,
+                keythereum.constants.scrypt.n
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.r,
+                t.expected.Crypto.kdfparams.r
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.r,
+                keythereum.constants.scrypt.r
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.p,
+                t.expected.Crypto.kdfparams.p
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.p,
+                keythereum.constants.scrypt.p
+            );
+        } else {
+            assert.strictEqual(
+                json.Crypto.kdfparams.c,
+                t.expected.Crypto.kdfparams.c
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.c,
+                keythereum.constants.pbkdf2.c
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.prf,
+                t.expected.Crypto.kdfparams.prf
+            );
+            assert.strictEqual(
+                json.Crypto.kdfparams.prf,
+                keythereum.constants.pbkdf2.prf
+            );
+        }
+        assert.strictEqual(
+            json.Crypto.kdfparams.dklen,
+            t.expected.Crypto.kdfparams.dklen
+        );
+        assert.strictEqual(
+            json.Crypto.kdfparams.dklen,
+            keythereum.constants.pbkdf2.dklen
+        );
+        assert.strictEqual(
+            json.Crypto.kdfparams.salt,
+            t.expected.Crypto.kdfparams.salt
+        );
+        assert.strictEqual(
+            json.Crypto.mac,
+            t.expected.Crypto.mac
+        );
+        assert.strictEqual(
+            json.version,
+            t.expected.version
+        );
+    }
+
     var test = function (t) {
-        it(t.input.kdf, function (done) {
+
+        it("[sync] " + t.input.kdf, function () {
             this.timeout(TIMEOUT);
-            keythereum.dump(
+            var json = keythereum.dump(
                 t.input.password,
                 t.input.privateKey,
                 t.input.salt,
                 t.input.iv,
-                t.input.kdf,
-                function (json) {
-                    if (json.error) {
-                        done(json);
-                    } else {
-                        validate(json);
-                        assert.strictEqual(json.address, t.expected.address);
-                        assert.strictEqual(
-                            json.Crypto.cipher,
-                            keythereum.constants.cipher
-                        );
-                        assert.strictEqual(
-                            json.Crypto.cipher,
-                            t.expected.Crypto.cipher
-                        );
-                        assert.strictEqual(
-                            json.Crypto.cipherparams.iv,
-                            t.input.iv.toString("hex")
-                        );
-                        assert.strictEqual(
-                            json.Crypto.cipherparams.iv,
-                            t.expected.Crypto.cipherparams.iv
-                        );
-                        assert.strictEqual(
-                            json.Crypto.ciphertext,
-                            t.expected.Crypto.ciphertext
-                        );
-                        assert.strictEqual(
-                            json.Crypto.kdf,
-                            t.expected.Crypto.kdf
-                        );
-                        if (t.input.kdf === "scrypt") {
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.n,
-                                t.expected.Crypto.kdfparams.n
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.n,
-                                keythereum.constants.scrypt.n
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.r,
-                                t.expected.Crypto.kdfparams.r
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.r,
-                                keythereum.constants.scrypt.r
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.p,
-                                t.expected.Crypto.kdfparams.p
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.p,
-                                keythereum.constants.scrypt.p
-                            );
-                        } else {
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.c,
-                                t.expected.Crypto.kdfparams.c
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.c,
-                                keythereum.constants.pbkdf2.c
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.prf,
-                                t.expected.Crypto.kdfparams.prf
-                            );
-                            assert.strictEqual(
-                                json.Crypto.kdfparams.prf,
-                                keythereum.constants.pbkdf2.prf
-                            );
-                        }
-                        assert.strictEqual(
-                            json.Crypto.kdfparams.dklen,
-                            t.expected.Crypto.kdfparams.dklen
-                        );
-                        assert.strictEqual(
-                            json.Crypto.kdfparams.dklen,
-                            keythereum.constants.pbkdf2.dklen
-                        );
-                        assert.strictEqual(
-                            json.Crypto.kdfparams.salt,
-                            t.expected.Crypto.kdfparams.salt
-                        );
-                        assert.strictEqual(
-                            json.Crypto.mac,
-                            t.expected.Crypto.mac
-                        );
-                        assert.strictEqual(
-                            json.version,
-                            t.expected.version
-                        );
-                        done();
-                    }
-                }
+                t.input.kdf
             );
+            if (json.error) throw json;
+            check_structure(json);
+            check_values(t, json);            
         });
+
+        if (t.input.kdf !== "scrypt") {
+            it("[async] " + t.input.kdf, function (done) {
+                this.timeout(TIMEOUT);                
+                keythereum.dump(
+                    t.input.password,
+                    t.input.privateKey,
+                    t.input.salt,
+                    t.input.iv,
+                    t.input.kdf,
+                    function (json) {
+                        if (json.error) {
+                            done(json);
+                        } else {
+                            check_structure(json);
+                            check_values(t, json);
+                            done();
+                        }
+                    }
+                );
+            });
+        }
     };
 
     test({
