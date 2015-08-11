@@ -368,7 +368,7 @@ module.exports = {
                 if (ex) throw ex;
                 console.log("Saved to file:\nkeystore/" + outfile);
                 console.log(
-                    "To use with geth, copy this file to your Ethereum "+
+                    "\nTo use with geth, copy this file to your Ethereum "+
                     "keystore folder (usually ~/.ethereum/keystore)."
                 );
                 if (cb && cb.constructor === Function) cb(outfile);
@@ -377,7 +377,7 @@ module.exports = {
     }
 
     /**
-     * Import private key from keystore secret-storage format.
+     * NYI: Import private key from keystore secret-storage format.
      * @param {Object} json Keystore object.
      * @param {function=} cb Callback function (optional).
      * @return {Object}

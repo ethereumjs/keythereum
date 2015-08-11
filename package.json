@@ -1,6 +1,6 @@
 {
   "name": "ethereumjs-keys",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Import and export Ethereum keys",
   "main": "index.js",
   "directories": {
