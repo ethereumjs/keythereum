@@ -1,6 +1,11 @@
 ethereumjs-keys
 ===============
 
+[![Build Status](https://travis-ci.org/AugurProject/ethereumjs-keys.svg?branch=master)](https://travis-ci.org/AugurProject/ethereumjs-keys)
+[![Coverage Status](https://coveralls.io/repos/AugurProject/ethereumjs-keys/badge.svg?branch=master&service=github)](https://coveralls.io/github/AugurProject/ethereumjs-keys?branch=master)
+
+[![NPM](https://nodei.co/npm/ethereumjs-keys.png)](https://nodei.co/npm/ethereumjs-keys/)
+
 Generate, import and export Ethereum private keys.  Uses PBKDF2 or scrypt key derivation functions.
 
 Installation

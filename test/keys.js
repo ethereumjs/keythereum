@@ -102,14 +102,16 @@ describe("Key derivation", function () {
         expected: "f06d69cdc7da0faffb1008270bca38f5e31891a3a773950e6d0fea48a7188551"
     });
 
-    test({
-        input: {
-            password: "testpassword",
-            salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
-            kdf: "scrypt"
-        },
-        expected: "fac192ceb5fd772906bea3e118a69e8bbb5cc24229e20d8766fd298291bba6bd"
-    });
+    if (!process.env.CONTINUOUS_INTEGRATION) {
+        test({
+            input: {
+                password: "testpassword",
+                salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
+                kdf: "scrypt"
+            },
+            expected: "fac192ceb5fd772906bea3e118a69e8bbb5cc24229e20d8766fd298291bba6bd"
+        });
+    }
 
 });
 
@@ -333,35 +335,37 @@ describe("Dump private key", function () {
         }
     });
 
-    test({
-        input: {
-            password: "testpassword",
-            privateKey: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
-            salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
-            iv: "83dbcc02d8ccb40e466191a123791e0e",
-            kdf: "scrypt"
-        },
-        expected: {
-            address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-            Crypto: {
-                cipher: "aes-128-ctr",
-                cipherparams: {
-                    iv: "83dbcc02d8ccb40e466191a123791e0e"
-                },
-                ciphertext: "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
-                kdf: "scrypt",
-                kdfparams: {
-                    dklen: 32,
-                    n: 262144,
-                    r: 1,
-                    p: 8,
-                    salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
-                },
-                mac: "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+    if (!process.env.CONTINUOUS_INTEGRATION) {
+        test({
+            input: {
+                password: "testpassword",
+                privateKey: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+                salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
+                iv: "83dbcc02d8ccb40e466191a123791e0e",
+                kdf: "scrypt"
             },
-            version: 3
-        }
-    });
+            expected: {
+                address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+                Crypto: {
+                    cipher: "aes-128-ctr",
+                    cipherparams: {
+                        iv: "83dbcc02d8ccb40e466191a123791e0e"
+                    },
+                    ciphertext: "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+                    kdf: "scrypt",
+                    kdfparams: {
+                        dklen: 32,
+                        n: 262144,
+                        r: 1,
+                        p: 8,
+                        salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+                    },
+                    mac: "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+                },
+                version: 3
+            }
+        });
+    }
 
 });
 
