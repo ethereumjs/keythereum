@@ -18,14 +18,9 @@ Usage
 
 ```javascript
 var keythereum = require("keythereum");
-
-// User-specified password
-var password = "wheethereum";
-
-// Key derivation function (default: PBKDF2)
-var kdf = "pbkdf2"; // "scrypt" to use the scrypt kdf
-
-// Generate private key and the salt and initialization vector to encrypt it
+```
+Generate a new secp256k1 ECDSA private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key:
+```javascript
 var dk = keythereum.create();
 // dk:
 {
@@ -33,9 +28,14 @@ var dk = keythereum.create();
     iv: <Buffer ...>,
     salt: <Buffer ...>
 }
-
-// Export key data to keystore "secret-storage" format:
-// https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
+```
+Next, specify a password and (optionally) a key derivation function.  If unspecified, PBKDF2-SHA256 will be used to derive the AES secret key.
+```javascript
+var password = "wheethereum";
+var kdf = "pbkdf2"; // or "scrypt" to use the scrypt kdf
+```
+Export key info to keystore ["secret-storage" format](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition):
+```javascript
 var json = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
 // json:
 {
@@ -58,8 +58,9 @@ var json = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
     id: 'e13b209c-3b2f-4327-bab0-3bef2e51630d',
     version: 3
 }
-
-// In Node, export formatted JSON to file.
+```
+In Node, the `exportToFile` method provides an easy way to export this formatted key object to file.  It creates a JSON file in the `keystore` sub-directory, and uses geth's current file-naming convention (ISO timestamp concatenated with the key's derived Ethereum address).
+```
 keythereum.exportToFile(json);
 ```
 After successful key export, you will see a message like:
@@ -67,12 +68,13 @@ After successful key export, you will see a message like:
 Saved to file:
 keystore/UTC--2015-08-11T06:13:53.359Z--008aeeda4d805471df9b2a5b0f38a0c3bcba786b
 
-To use with geth, copy this file to your Ethereum keystore folder (usually ~/.ethereum/keystore).
+To use with geth, copy this file to your Ethereum keystore folder
+(usually ~/.ethereum/keystore).
 ```
 
 Tests
 -----
 
-Unit tests are run with mocha.
+Unit tests are in the `test` directory, and are run with mocha.
 
     $ npm test
