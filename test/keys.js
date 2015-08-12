@@ -62,6 +62,26 @@ describe("Crypto", function () {
 
 });
 
+// describe("Import key from keystore file", function () {
+
+//     var test = function (t) {
+//         it("import " + t.address, function (done) {
+
+//         });
+//     };
+
+//     test({
+//         input: {
+//             address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+//             datadir: null
+//         },
+//         expected: {
+            
+//         }
+//     });
+
+// });
+
 // Test vectors:
 // https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
 

@@ -382,6 +382,38 @@ module.exports = {
     },
 
     /**
+     * Import private key from keystore secret-storage format.
+     * @param {Object} json Keystore object.
+     * @param {function=} cb Callback function (optional).
+     * @return {Object}
+     */
+    // load: function (json, cb) {
+
+    // },
+
+    /**
+     * Import formatted JSON from keystore file.
+     * (Note: Node.js only!)
+     * @param {string} address Ethereum address to import.
+     * @param {string=} datadir Ethereum data directory (default: ~/.ethereum).
+     * @param {function=} cb Callback function (optional).
+     * @return {Object} Keystore data file's contents.
+     */
+    // importFromFile: function (address, datadir, cb) {
+
+    //     var p = require("path");
+    //     var fs = require("fs");
+
+    //     datadir = datadir || p.join(process.env.HOME, ".ethereum");
+
+    //     fs.readdir(p.join(datadir), "keystore", function (ex, files) {
+    //         if (ex) throw ex;
+    //         console.log(files);
+    //     });
+    
+    // },
+
+    /**
      * Export formatted JSON to keystore file.
      * (Note: Node.js only!)
      * @param {Object} json Keystore object.
@@ -404,15 +436,5 @@ module.exports = {
             }
         );
     }
-
-    /**
-     * NYI: Import private key from keystore secret-storage format.
-     * @param {Object} json Keystore object.
-     * @param {function=} cb Callback function (optional).
-     * @return {Object}
-     */
-    // loadPrivateKey: function (json, cb) {
-
-    // }
 
 };
