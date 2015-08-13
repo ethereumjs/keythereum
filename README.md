@@ -24,6 +24,9 @@ To use keythereum, just `require` it:
 ```javascript
 var keythereum = require("keythereum");
 ```
+
+### Key creation
+
 Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key.  `create` is synchronous if no arguments are provided, and asynchronous if a callback function provided:
 ```javascript
 // synchronous
@@ -40,7 +43,10 @@ keythereum.create(function (dk) {
     // do stuff!
 });
 ```
-Next, specify a password and (optionally) a key derivation function.  If unspecified, PBKDF2-SHA256 will be used to derive the AES secret key.
+
+### Key export
+
+You will need to specify a password and (optionally) a key derivation function.  If unspecified, PBKDF2-SHA256 will be used to derive the AES secret key.
 ```javascript
 var password = "wheethereum";
 var kdf = "pbkdf2"; // or "scrypt" to use the scrypt kdf
@@ -89,7 +95,40 @@ keystore/UTC--2015-08-11T06:13:53.359Z--008aeeda4d805471df9b2a5b0f38a0c3bcba786b
 To use with geth, copy this file to your Ethereum keystore folder
 (usually ~/.ethereum/keystore).
 ```
-Note: by default, keythereum uses 65536 hashing rounds in its key derivation functions, compared to the 262144 geth uses by default.  (Keythereum's JSON output files are still compatible with geth, however, since they tell geth how many rounds to use.)  These values are user-editable: `keythereum.constants.pbkdf2.c` is the number of rounds for PBKDF2, and `keythereum.constants.scrypt.n` is the number of rounds for scrypt.
+
+### Key import
+
+Importing a key from geth's keystore can only be done on Node.  The JSON file is parsed into an object with the same structure as `keyObject` above.
+```javascript
+// specify a data directory (optional; defaults to ~/.ethereum)
+var datadir = "/home/jack/.ethereum-test";
+
+// synchronous
+var keyObject = keythereum.importFromFile(address, datadir);
+
+// asynchronous
+keythereum.importFromFile(address, datadir, function (keyObject) {
+    // do stuff
+});
+```
+This has been tested with version 3 and version 1, but not version 2, keys.  (Please send me a version 2 keystore file if you have one, so I can test it!)
+
+To recover the plaintext private key from the key object, use `keythereum.recover`.  The private key is returned as a Buffer.
+```javascript
+// synchronous
+var privateKey = keythereum.recover(password, keyObject);
+// privateKey:
+<Buffer ...>
+
+// asynchronous
+keythereum.recover(password, keyObject, function (privateKey) {
+    // do stuff
+});
+```
+
+### Hashing rounds
+
+By default, keythereum uses 65536 hashing rounds in its key derivation functions, compared to the 262144 geth uses by default.  (Keythereum's JSON output files are still compatible with geth, however, since they tell geth how many rounds to use.)  These values are user-editable: `keythereum.constants.pbkdf2.c` is the number of rounds for PBKDF2, and `keythereum.constants.scrypt.n` is the number of rounds for scrypt.
 
 Tests
 -----

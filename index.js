@@ -18,6 +18,12 @@ var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt")(67108864);
 
+function FileNotFoundError(message) {
+    this.message = "File Not Found: " + message;
+}
+
+FileNotFoundError.prototype = new Error();
+
 function str2buf(str, enc) {
     if (str.constructor === String) {
         if (enc) {
@@ -292,7 +298,7 @@ module.exports = {
     },
 
     /**
-     * Assemble JSON object in secret-storage format.
+     * Assemble key data object in secret-storage format.
      * @param {string|buffer} derivedKey Password-derived secret key.
      * @param {string|buffer} privateKey Private key.
      * @param {string|buffer} salt Randomly generated salt.
@@ -301,7 +307,7 @@ module.exports = {
      * @param {function=} cb Callback function (optional).
      * @return {Object}
      */
-    jsonMarshal: function(derivedKey, privateKey, salt, iv, kdf) {
+    marshal: function(derivedKey, privateKey, salt, iv, kdf) {
         var ciphertext, json;
 
         // encryption key: first 16 bytes of derived key
@@ -365,13 +371,13 @@ module.exports = {
         if (cb && cb.constructor === Function) {
 
             this.deriveKey(password, salt, kdf, function (derivedKey) {
-                cb(this.jsonMarshal(derivedKey, privateKey, salt, iv, kdf));
+                cb(this.marshal(derivedKey, privateKey, salt, iv, kdf));
             }.bind(this));
 
         // synchronous if no callback
         } else {
 
-            return this.jsonMarshal(
+            return this.marshal(
                 this.deriveKey(password, salt, kdf),
                 privateKey,
                 salt,
@@ -382,36 +388,69 @@ module.exports = {
     },
 
     /**
-     * Import private key from keystore secret-storage format.
-     * @param {Object} json Keystore object.
+     * Recover plaintext private key from secret-storage key object.
+     * @param {Object} keyObject Keystore object.
      * @param {function=} cb Callback function (optional).
-     * @return {Object}
+     * @return {buffer} Plaintext private key.
      */
-    // load: function (json, cb) {
+    recover: function (password, keyObject, cb) {
 
-    // },
+        function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
 
-    /**
-     * Import formatted JSON from keystore file.
-     * (Note: Node.js only!)
-     * @param {string} address Ethereum address to import.
-     * @param {string=} datadir Ethereum data directory (default: ~/.ethereum).
-     * @param {function=} cb Callback function (optional).
-     * @return {Object} Keystore data file's contents.
-     */
-    // importFromFile: function (address, datadir, cb) {
+            // verify that message authentication codes match
+            var mac = self.getMAC(derivedKey, ciphertext);
+            if (mac === keyObject.Crypto.mac) {
 
-    //     var p = require("path");
-    //     var fs = require("fs");
+                return new Buffer(self.decrypt(
+                    ciphertext,
+                    derivedKey.slice(0, 16),
+                    iv
+                ), "hex");
+            
+            } else {
+                throw new Error("message authentication code mismatch");
+            }
+        }
 
-    //     datadir = datadir || p.join(process.env.HOME, ".ethereum");
+        var self = this;
+        var iv = keyObject.Crypto.cipherparams.iv;
+        var salt = keyObject.Crypto.kdfparams.salt;
+        var ciphertext = keyObject.Crypto.ciphertext;
 
-    //     fs.readdir(p.join(datadir), "keystore", function (ex, files) {
-    //         if (ex) throw ex;
-    //         console.log(files);
-    //     });
-    
-    // },
+        if (iv && iv.constructor === String) iv = str2buf(iv);
+        if (salt && salt.constructor === String) salt = str2buf(salt);
+        if (ciphertext && ciphertext.constructor === String)
+            ciphertext = str2buf(ciphertext);
+
+        if (keyObject.Crypto.kdf === "scrypt") {
+            this.constants.scrypt = {
+                n: keyObject.Crypto.kdfparams.n,
+                r: keyObject.Crypto.kdfparams.r,
+                p: keyObject.Crypto.kdfparams.p,
+                dklen: keyObject.Crypto.kdfparams.dklen
+            };
+        } else {
+            if (keyObject.Crypto.kdfparams.prf !== "hmac-sha256") {
+                throw new Error("PBKDF2 only supported with HMAC-SHA256")
+            }
+            this.constants.pbkdf2.c = keyObject.Crypto.kdfparams.c;
+            this.constants.pbkdf2.dklen = keyObject.Crypto.kdfparams.dklen;
+        }
+
+        // derive secret key from password
+        if (cb && cb.constructor === Function) {
+            this.deriveKey(password, salt, keyObject.Crypto.kdf, function (derivedKey) {
+                cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
+            });
+        } else {
+            return verifyAndDecrypt(
+                this.deriveKey(password, salt, keyObject.Crypto.kdf),
+                salt,
+                iv,
+                ciphertext
+            );
+        }
+    },
 
     /**
      * Export formatted JSON to keystore file.
@@ -435,6 +474,60 @@ module.exports = {
                 if (cb && cb.constructor === Function) cb(outfile);
             }
         );
+    },
+
+    /**
+     * Import key data object from keystore JSON file.
+     * (Note: Node.js only!)
+     * @param {string} address Ethereum address to import.
+     * @param {string=} datadir Ethereum data directory (default: ~/.ethereum).
+     * @param {function=} cb Callback function (optional).
+     * @return {Object} Keystore data file's contents.
+     */
+    importFromFile: function (address, datadir, cb) {
+
+        function findKeyfile(address, files) {
+            var filepath = null;
+            for (var i = 0, len = files.length; i < len; ++i) {
+                if (files[i].indexOf(address) > -1) {
+                    filepath = p.join(keystore, files[i]);
+                    if (fs.lstatSync(filepath).isDirectory()) {
+                        filepath = p.join(filepath, files[i]);
+                    }
+                    break;
+                }
+            }
+            return filepath;
+        }
+
+        var p = require("path");
+        var fs = require("fs");
+        datadir = datadir || p.join(process.env.HOME, ".ethereum");
+        var keystore = p.join(datadir, "keystore");
+
+        if (cb && cb.constructor === Function) {
+            fs.readdir(keystore, function (ex, files) {
+                if (ex) throw ex;
+                var filepath = findKeyfile(address, files);
+                if (filepath) {
+                    cb(JSON.parse(fs.readFileSync(filepath)));
+                } else {
+                    throw new FileNotFoundError(
+                        "could not find key file for address " + address
+                    );
+                }
+            });
+
+        } else {
+            var filepath = findKeyfile(address, fs.readdirSync(keystore));
+            if (filepath) {
+                return JSON.parse(fs.readFileSync(filepath));
+            } else {
+                throw new FileNotFoundError(
+                    "could not find key file for address " + address
+                );
+            }
+        }
     }
 
 };
