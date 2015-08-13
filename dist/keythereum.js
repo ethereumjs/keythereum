@@ -66,14 +66,14 @@ module.exports = {
 
         // Key derivation function parameters
         pbkdf2: {
-            c: 262144,
+            c: 65536,
             dklen: 32,
             hash: "sha256",
             prf: "hmac-sha256"
         },
         scrypt: {
             dklen: 32,
-            n: 262144,
+            n: 65536,
             r: 1,
             p: 8
         }
@@ -347,7 +347,7 @@ module.exports = {
                 c: this.constants.pbkdf2.c,
                 dklen: this.constants.pbkdf2.dklen,
                 prf: this.constants.pbkdf2.prf,
-                salt: salt
+                salt: salt.toString("hex")
             };
         }
 

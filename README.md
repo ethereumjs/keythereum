@@ -89,6 +89,7 @@ keystore/UTC--2015-08-11T06:13:53.359Z--008aeeda4d805471df9b2a5b0f38a0c3bcba786b
 To use with geth, copy this file to your Ethereum keystore folder
 (usually ~/.ethereum/keystore).
 ```
+Note: by default, keythereum uses 65536 hashing rounds in its key derivation functions, compared to the 262144 geth uses by default.  (Keythereum's JSON output files are still compatible with geth, however, since they tell geth how many rounds to use.)  These values are user-editable: `keythereum.constants.pbkdf2.c` is the number of rounds for PBKDF2, and `keythereum.constants.scrypt.n` is the number of rounds for scrypt.
 
 Tests
 -----

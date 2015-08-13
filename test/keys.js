@@ -12,6 +12,10 @@ var pubToAddress = require("ethereumjs-util").pubToAddress;
 var ecdsa = new (require("elliptic").ec)("secp256k1");
 var keythereum = require("../");
 
+// change hashing rounds to match geth's default
+keythereum.constants.pbkdf2.c = 262144;
+keythereum.constants.scrypt.n = 262144;
+
 // create private key
 var privateKey = crypto.randomBytes(32);
 
@@ -76,7 +80,7 @@ describe("Crypto", function () {
 //             datadir: null
 //         },
 //         expected: {
-            
+
 //         }
 //     });
 
