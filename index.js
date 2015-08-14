@@ -431,7 +431,7 @@ module.exports = {
             };
         } else {
             if (keyObject.Crypto.kdfparams.prf !== "hmac-sha256") {
-                throw new Error("PBKDF2 only supported with HMAC-SHA256")
+                throw new Error("PBKDF2 only supported with HMAC-SHA256");
             }
             this.constants.pbkdf2.c = keyObject.Crypto.kdfparams.c;
             this.constants.pbkdf2.dklen = keyObject.Crypto.kdfparams.dklen;

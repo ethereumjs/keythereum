@@ -432,14 +432,14 @@ describe("Import from keystore file", function () {
 
     var test = function (t) {
 
-        it("[sync]  import " + t.input.address + " from file", function () {
+        it("[sync]  " + t.expected.Crypto.kdf + " import " + t.input.address + " from file", function () {
             this.timeout(TIMEOUT);
             var keyObject = keythereum.importFromFile(t.input.address, t.input.datadir);
             check_structure(keyObject);
             check_values(t, keyObject);
         });
 
-        it("[async] import " + t.input.address + " from file", function (done) {
+        it("[async] " + t.expected.Crypto.kdf + " import " + t.input.address + " from file", function (done) {
             this.timeout(TIMEOUT);
             keythereum.importFromFile(t.input.address, t.input.datadir, function (keyObject) {
                 check_structure(keyObject);
@@ -702,7 +702,7 @@ describe("Recover plaintext private key from key object", function () {
 
         it("[async] recover key for " + t.input.keyObject.address, function (done) {
             this.timeout(TIMEOUT);
-            var dk = keythereum.recover(t.input.password, t.input.keyObject, function (dk) {
+            keythereum.recover(t.input.password, t.input.keyObject, function (dk) {
                 assert.strictEqual(dk.toString("hex"), t.expected);
                 done();
             });
