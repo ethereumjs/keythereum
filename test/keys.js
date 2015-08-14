@@ -455,7 +455,7 @@ describe("Import from keystore file", function () {
         test({
             input: {
                 address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-                datadir: path.join(process.env.HOME, ".ethereum-augur")
+                datadir: path.join(__dirname, "fixtures")
             },
             expected: {
                 address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
@@ -482,7 +482,7 @@ describe("Import from keystore file", function () {
         test({
             input: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
-                datadir: path.join(process.env.HOME, ".ethereum-augur")
+                datadir: path.join(__dirname, "fixtures")
             },
             expected: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
@@ -509,7 +509,7 @@ describe("Import from keystore file", function () {
         test({
             input: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
-                datadir: path.join(process.env.HOME, ".ethereum-augur")
+                datadir: path.join(__dirname, "fixtures")
             },
             expected: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
@@ -537,7 +537,7 @@ describe("Import from keystore file", function () {
             test({
                 input: {
                     address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
-                    datadir: path.join(process.env.HOME, ".ethereum")
+                    datadir: path.join(__dirname, "fixtures")
                 },
                 expected: {
                     address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
@@ -565,7 +565,7 @@ describe("Import from keystore file", function () {
             test({
                 input: {
                     address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
-                    datadir: path.join(process.env.HOME, ".ethereum")
+                    datadir: path.join(__dirname, "fixtures")
                 },
                 expected: {
                     address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
@@ -601,7 +601,7 @@ describe("Import from keystore file", function () {
             test({
                 input: {
                     address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
-                    datadir: path.join(process.env.HOME, ".ethereum")
+                    datadir: path.join(__dirname, "fixtures")
                 },
                 expected: {
                     address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
@@ -630,7 +630,7 @@ describe("Import from keystore file", function () {
             test({
                 input: {
                     address: "f0c4ee355432a7c7da12bdef04543723d110d591",
-                    datadir: null
+                    datadir: path.join(__dirname, "fixtures")
                 },
                 expected: {
                     address: "f0c4ee355432a7c7da12bdef04543723d110d591",
@@ -658,7 +658,8 @@ describe("Import from keystore file", function () {
 
             test({
                 input: {
-                    address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db"
+                    address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
+                    datadir: path.join(__dirname, "fixtures")
                 },
                 expected: {
                     address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",

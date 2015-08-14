@@ -10,8 +10,6 @@ Keythereum is a JavaScript tool to generate, import and export Ethereum keys.  T
 
 Keythereum uses the same key derivation functions (PBKDF2-SHA256 or scrypt), symmetric ciphers (AES-128-CTR or AES-128-CBC), and message authentication codes as [geth](https://github.com/ethereum/go-ethereum).  You can export your generated key to file, copy it to your data directory's keystore, and immediately start using it in your local Ethereum client.
 
-Note: key import is not yet implemented.
-
 Installation
 ------------
 
