@@ -48,6 +48,9 @@ module.exports = {
 
     constants: {
 
+        // Suppress logging
+        quiet: false,
+
         // Symmetric cipher for private key encryption
         cipher: "aes-128-ctr",
 
@@ -74,45 +77,47 @@ module.exports = {
 
     /**
      * Symmetric private key encryption using secret (derived) key.
-     * @param {string} plaintext Text to be encrypted.
-     * @param {string|buffer} key Secret key.
-     * @param {string|buffer} iv Initialization vector.
+     * @param {buffer|string} plaintext Text to be encrypted.
+     * @param {buffer|string} key Secret key.
+     * @param {buffer|string} iv Initialization vector.
      * @return {string} Base64 encrypted text.
      */
     encrypt: function (plaintext, key, iv) {
         var cipher, ciphertext;
 
+        if (plaintext.constructor === String) plaintext = str2buf(plaintext);
         if (key.constructor === String) key = str2buf(key);
         if (iv.constructor === String) iv = str2buf(iv);
 
         cipher = crypto.createCipheriv(this.constants.cipher, key, iv);
-        ciphertext = cipher.update(plaintext, "hex", "base64");
+        ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
 
         return ciphertext + cipher.final("base64");
     },
 
     /**
      * Symmetric private key decryption using secret (derived) key.
-     * @param {string} ciphertext Text to be decrypted.
-     * @param {string|buffer} key Secret key.
-     * @param {string|buffer} iv Initialization vector.
+     * @param {buffer|string} ciphertext Text to be decrypted.
+     * @param {buffer|string} key Secret key.
+     * @param {buffer|string} iv Initialization vector.
      * @return {string} Hex decryped text.
      */
     decrypt: function (ciphertext, key, iv) {
         var decipher, plaintext;
 
+        if (ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
         if (key.constructor === String) key = str2buf(key);
         if (iv.constructor === String) iv = str2buf(iv);
 
         decipher = crypto.createDecipheriv(this.constants.cipher, key, iv);
-        plaintext = decipher.update(ciphertext, "base64", "hex");
+        plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
 
         return plaintext + decipher.final("hex");
     },
 
     /**
      * Derive Ethereum address from private key.
-     * @param {string|buffer} privateKey ECDSA private key.
+     * @param {buffer|string} privateKey ECDSA private key.
      * @return {string} Hex-encoded Ethereum address.
      */
     privateKeyToAddress: function (privateKey) {
@@ -130,8 +135,8 @@ module.exports = {
      * encrypted text.  The MAC is the keccak-256 hash of the byte array
      * formed by concatenating the second 16 bytes of the derived key with
      * the ciphertext key's contents.
-     * @param {string|buffer} derivedKey Secret key derived from password.
-     * @param {string|buffer} ciphertext Text encrypted with secret key.
+     * @param {buffer|string} derivedKey Secret key derived from password.
+     * @param {buffer|string} ciphertext Text encrypted with secret key.
      * @return {string} Hex-encoded MAC.
      */
     getMAC: function (derivedKey, ciphertext) {
@@ -162,38 +167,44 @@ module.exports = {
         if (password && salt) {
 
             // convert strings to buffers
-            if (password.constructor === String) {
-                password = new Buffer(password, "utf8");
-            }
-            if (salt.constructor === String) {
-                if (validator.isHexadecimal(salt)) {
-                    salt = new Buffer(salt, "hex");
-                } else if (validator.isBase64(salt)) {
-                    salt = new Buffer(salt, "base64");
-                } else {
-                    salt = new Buffer(salt);
-                }
-            }
+            if (password.constructor === String)
+                password = str2buf(password, "utf8");
+            if (salt.constructor === String)
+                salt = str2buf(salt);
 
             // use scrypt as key derivation function
             if (kdf === "scrypt") {
 
                 try {
-                    var derivedKey = new Buffer(
-                        scrypt.to_hex(scrypt.crypto_scrypt(
-                            password,
-                            salt,
-                            this.constants.scrypt.n,
-                            this.constants.scrypt.r,
-                            this.constants.scrypt.p,
-                            this.constants.scrypt.dklen
-                        )
-                    ), "hex");
 
                     if (cb && cb.constructor === Function) {
-                        cb(derivedKey);
+
+                        setTimeout(function () {
+                            cb(new Buffer(
+                                scrypt.to_hex(scrypt.crypto_scrypt(
+                                    password,
+                                    salt,
+                                    this.constants.scrypt.n,
+                                    this.constants.scrypt.r,
+                                    this.constants.scrypt.p,
+                                    this.constants.scrypt.dklen
+                                )
+                            ), "hex"));
+                        }.bind(this), 0);
+
                     } else {
-                        return derivedKey; 
+
+                        return new Buffer(
+                            scrypt.to_hex(scrypt.crypto_scrypt(
+                                password,
+                                salt,
+                                this.constants.scrypt.n,
+                                this.constants.scrypt.r,
+                                this.constants.scrypt.p,
+                                this.constants.scrypt.dklen
+                            )
+                        ), "hex");
+
                     }
 
                 } catch (ex) {
@@ -294,10 +305,10 @@ module.exports = {
 
     /**
      * Assemble key data object in secret-storage format.
-     * @param {string|buffer} derivedKey Password-derived secret key.
-     * @param {string|buffer} privateKey Private key.
-     * @param {string|buffer} salt Randomly generated salt.
-     * @param {string|buffer} iv Initialization vector.
+     * @param {buffer} derivedKey Password-derived secret key.
+     * @param {buffer} privateKey Private key.
+     * @param {buffer} salt Randomly generated salt.
+     * @param {buffer} iv Initialization vector.
      * @param {string=} kdf Key derivation function (default: pbkdf2).
      * @param {function=} cb Callback function (optional).
      * @return {Object}
@@ -331,7 +342,7 @@ module.exports = {
                 n: this.constants.scrypt.n,
                 r: this.constants.scrypt.r,
                 p: this.constants.scrypt.p,
-                salt: salt
+                salt: salt.toString("hex")
             };
 
         } else {
@@ -458,6 +469,16 @@ module.exports = {
     exportToFile: function (keyObject, keystore, cb) {
         keystore = keystore || "keystore";
 
+        var instructions = function (outpath) {
+            if (!this.constants.quiet) {
+                console.log(
+                    "Saved to file:\n" + outpath + "\n"+
+                    "To use with geth, copy this file to your Ethereum "+
+                    "keystore folder (usually ~/.ethereum/keystore)."
+                );
+            }
+        }.bind(this);
+
         var outfile = "UTC--" + new Date().toISOString()+
             "00000--" + keyObject.address;
         var outpath = path.join(keystore, outfile);
@@ -469,25 +490,22 @@ module.exports = {
                 
                 fs.writeFile(outpath, json, function (ex) {
                     if (ex) throw ex;
-                    if (cb && cb.constructor === Function) cb(outpath);
+                    instructions(outpath);
+                    cb(outpath);
                 });
 
             } else {
 
                 fs.writeFileSync(outpath, json);
-                console.log(
-                    "Saved to file:\n" + outpath + "\n"+
-                    "To use with geth, copy this file to your Ethereum "+
-                    "keystore folder (usually ~/.ethereum/keystore)."
-                );
+                instructions(outpath);
                 return outpath;
             }
 
         } else {
             if (cb && cb.constructor === Function) {
-                cb(outpath);
+                cb(outfile);
             } else {
-                return outpath;
+                return outfile;
             }
         }
     },

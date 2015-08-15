@@ -5,6 +5,7 @@
 
 "use strict";
 
+var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
 var assert = require("chai").assert;
@@ -13,54 +14,291 @@ var ecdsa = new (require("elliptic").ec)("secp256k1");
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 
+// suppress logging
+keythereum.constants.quiet = true;
+
 // change hashing rounds to match geth's default
 keythereum.constants.pbkdf2.c = 262144;
 keythereum.constants.scrypt.n = 262144;
 
 // timeout for asynchronous unit tests
-var TIMEOUT = 48000;
+var TIMEOUT = 120000;
 
-describe("Crypto", function () {
+// create private key
+var privateKey = crypto.randomBytes(32);
 
-    // create private key
-    var privateKey = crypto.randomBytes(32);
+// derive secp256k1 ECDSA public key and address from private key
+var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
+var address = pubToAddress(publicKey).toString("hex");
 
-    // derive secp256k1 ECDSA public key and address from private key
-    var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
-    var address = pubToAddress(publicKey).toString("hex");
-
-    // user specified password
-    var password = "wheethereum";
+describe("Private key recovery", function () {
 
     // password used as secret key for aes-256 cipher
+    var password = "wheethereum";
     var secret = crypto.createHash("sha256").update(password).digest("hex");
     var cipher = crypto.createCipher("aes-256-cbc", secret);
     var encryptedPrivateKey = cipher.update(privateKey, "hex", "base64");
     encryptedPrivateKey += cipher.final("base64");
 
-    // verify private key is recovered by decryption
-    it("private key should be recovered using the password to decrypt", function () {
+    it(encryptedPrivateKey + " -> " + privateKey.toString("hex"), function () {
+
+        // verify private key is recovered by decryption
         var decipher = crypto.createDecipher("aes-256-cbc", secret);
         var decryptedPrivateKey = decipher.update(encryptedPrivateKey, "base64", "hex");
         decryptedPrivateKey += decipher.final("hex");
         assert.strictEqual(decryptedPrivateKey, privateKey.toString("hex"));
     });
 
-    it("derive address from private key", function () {
-        assert.strictEqual(
-            keythereum.privateKeyToAddress(privateKey),
-            "0x" + address
-        );
+});
+
+describe("Derive Ethereum address from private key", function () {
+
+    var test = function (t) {
+        it(JSON.stringify(t.privateKey) + " -> " + t.address, function () {
+            assert.strictEqual(
+                keythereum.privateKeyToAddress(t.privateKey),
+                "0x" + t.address
+            );
+        });
+    };
+
+    var runtests = function (t) {
+
+        test({
+            privateKey: t.privateKey,
+            address: t.address
+        });
+
+        test({
+            privateKey: t.privateKey.toString("hex"),
+            address: t.address
+        });
+
+        test({
+            privateKey: t.privateKey.toString("base64"),
+            address: t.address
+        });
+    };
+
+    runtests({
+        privateKey: new Buffer(privateKey, "hex"),
+        address: address
     });
 
-    it("generate random 256-bit private key & salt, 128-bit initialization vector", function () {
-        var plaintext = keythereum.create();
-        assert.property(plaintext, "privateKey");
-        assert.isNotNull(plaintext.privateKey);
-        assert.property(plaintext, "iv");
-        assert.isNotNull(plaintext.iv);
-        assert.property(plaintext, "salt");
-        assert.isNotNull(plaintext.salt);
+    runtests({
+        privateKey: new Buffer(
+            "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            "hex"
+        ),
+        address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b"
+    });
+
+});
+
+describe("Create random private key, salt and initialization vector", function () {
+
+    var test = function (dk) {
+
+        assert.property(dk, "privateKey");
+        assert.isNotNull(dk.privateKey);
+        assert.instanceOf(dk.privateKey, Buffer);
+        assert.strictEqual(dk.privateKey.length, keythereum.constants.keyBytes);
+
+        assert.property(dk, "iv");
+        assert.isNotNull(dk.iv);
+        assert.instanceOf(dk.iv, Buffer);
+        assert.strictEqual(dk.iv.length, keythereum.constants.ivBytes);
+
+        assert.property(dk, "salt");
+        assert.isNotNull(dk.salt);
+        assert.instanceOf(dk.salt, Buffer);
+        assert.strictEqual(dk.salt.length, keythereum.constants.keyBytes);
+    };
+
+    var runtests = function (done) {
+
+        // synchronous
+        test(keythereum.create());
+
+        // asynchronous
+        keythereum.create(function (dk) {
+            test(dk);
+            done();
+        });
+    };
+
+    for (var i = 0; i < 25; ++i) {
+        it("create key " + i, runtests);
+    }
+
+});
+
+describe("Encryption", function () {
+
+    var test = function (t) {
+
+        var label = t.input.cipher + ": " + JSON.stringify(t.input.plaintext)+
+            " -> " + t.expected.ciphertext;
+
+        it(label, function () {
+            var oldCipher = keythereum.constants.cipher;
+            keythereum.constants.cipher = t.input.cipher;
+            assert.strictEqual(
+                keythereum.encrypt(t.input.plaintext, t.input.key, t.input.iv),
+                t.expected.ciphertext
+            );
+            keythereum.constants.cipher = oldCipher;
+        });
+    };
+
+    var runtests = function (t) {
+
+        test({
+            input: {
+                plaintext: t.plaintext,
+                key: t.key,
+                iv: t.iv,
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                ciphertext: t.ciphertext.toString("base64")
+            }
+        });
+
+        test({
+            input: {
+                plaintext: t.plaintext.toString("hex"),
+                key: t.key.toString("hex"),
+                iv: t.iv.toString("hex"),
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                ciphertext: t.ciphertext.toString("base64")
+            }
+        });
+
+        test({
+            input: {
+                plaintext: t.plaintext.toString("base64"),
+                key: t.key.toString("base64"),
+                iv: t.iv.toString("base64"),
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                ciphertext: t.ciphertext.toString("base64")
+            }
+        });
+    };
+
+    runtests({
+        plaintext: new Buffer(
+            "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            "hex"
+        ),
+        ciphertext: new Buffer(
+            "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+            "hex"
+        ),
+        key: new Buffer("f06d69cdc7da0faffb1008270bca38f5", "hex"),
+        iv: new Buffer("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
+    });
+
+    runtests({
+        plaintext: new Buffer(
+            "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            "hex"
+        ),
+        ciphertext: new Buffer(
+            "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+            "hex"
+        ),
+        key: new Buffer("fac192ceb5fd772906bea3e118a69e8b", "hex"),
+        iv: new Buffer("83dbcc02d8ccb40e466191a123791e0e", "hex")
+    });
+
+});
+
+describe("Decryption", function () {
+
+    var test = function (t) {
+
+        var label = t.input.cipher + ": " + JSON.stringify(t.input.ciphertext)+
+            " -> " + t.expected.plaintext;
+
+        it(label, function () {
+            var oldCipher = keythereum.constants.cipher;
+            keythereum.constants.cipher = t.input.cipher;
+            assert.strictEqual(
+                keythereum.decrypt(t.input.ciphertext, t.input.key, t.input.iv),
+                t.expected.plaintext
+            );
+            keythereum.constants.cipher = oldCipher;
+        });
+    };
+
+    var runtests = function (t) {
+
+        test({
+            input: {
+                ciphertext: t.ciphertext,
+                key: t.key,
+                iv: t.iv,
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                plaintext: t.plaintext.toString("hex")
+            }
+        });
+
+        test({
+            input: {
+                ciphertext: t.ciphertext.toString("hex"),
+                key: t.key.toString("hex"),
+                iv: t.iv.toString("hex"),
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                plaintext: t.plaintext.toString("hex")
+            }
+        });
+
+        test({
+            input: {
+                ciphertext: t.ciphertext.toString("base64"),
+                key: t.key.toString("base64"),
+                iv: t.iv.toString("base64"),
+                cipher: "aes-128-ctr"
+            },
+            expected: {
+                plaintext: t.plaintext.toString("hex")
+            }
+        });
+    };
+
+    runtests({
+        plaintext: new Buffer(
+            "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            "hex"
+        ),
+        ciphertext: new Buffer(
+            "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+            "hex"
+        ),
+        key: new Buffer("f06d69cdc7da0faffb1008270bca38f5", "hex"),
+        iv: new Buffer("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
+    });
+
+    runtests({
+        plaintext: new Buffer(
+            "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            "hex"
+        ),
+        ciphertext: new Buffer(
+            "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+            "hex"
+        ),
+        key: new Buffer("fac192ceb5fd772906bea3e118a69e8b", "hex"),
+        iv: new Buffer("83dbcc02d8ccb40e466191a123791e0e", "hex")
     });
 
 });
@@ -71,18 +309,22 @@ describe("Crypto", function () {
 describe("Key derivation", function () {
 
     var test = function (t) {
-        it("[sync] " + t.input.kdf, function () {
+
+        it(t.input.kdf, function (done) {
             this.timeout(TIMEOUT);
+
+            // synchronous
             var derivedKey = keythereum.deriveKey(
                 t.input.password,
                 t.input.salt,
                 t.input.kdf
             );
-            assert.strictEqual(derivedKey.toString("hex"), t.expected);
-        });
-        if (t.input.kdf !== "scrypt") {
-            it("[async] " + t.input.kdf, function (done) {
-                this.timeout(TIMEOUT);
+            if (derivedKey.error) {
+                done(derivedKey);
+            } else {
+                assert.strictEqual(derivedKey.toString("hex"), t.expected);
+
+                // asynchronous
                 keythereum.deriveKey(
                     t.input.password,
                     t.input.salt,
@@ -96,8 +338,9 @@ describe("Key derivation", function () {
                         }
                     }
                 );
-            });
-        }
+            }
+        });
+
     };
 
     test({
@@ -109,16 +352,14 @@ describe("Key derivation", function () {
         expected: "f06d69cdc7da0faffb1008270bca38f5e31891a3a773950e6d0fea48a7188551"
     });
 
-    if (!process.env.CONTINUOUS_INTEGRATION) {
-        test({
-            input: {
-                password: "testpassword",
-                salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
-                kdf: "scrypt"
-            },
-            expected: "fac192ceb5fd772906bea3e118a69e8bbb5cc24229e20d8766fd298291bba6bd"
-        });
-    }
+    test({
+        input: {
+            password: "testpassword",
+            salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
+            kdf: "scrypt"
+        },
+        expected: "fac192ceb5fd772906bea3e118a69e8bbb5cc24229e20d8766fd298291bba6bd"
+    });
 
 });
 
@@ -153,8 +394,10 @@ describe("Dump private key", function () {
 
     var test = function (t) {
 
-        it("[sync] " + t.input.kdf, function () {
+        it(t.input.kdf, function (done) {
             this.timeout(TIMEOUT);
+
+            // synchronous
             var keyObject = keythereum.dump(
                 t.input.password,
                 t.input.privateKey,
@@ -162,32 +405,31 @@ describe("Dump private key", function () {
                 t.input.iv,
                 t.input.kdf
             );
-            if (keyObject.error) throw keyObject;
-            checkKeyObj.structure(keythereum, keyObject);
-            checkKeyObj.values(keythereum, t, keyObject);            
-        });
+            if (keyObject.error) {
+                done(keyObject);
+            } else {
+                checkKeyObj.structure(keythereum, keyObject);
+                checkKeyObj.values(keythereum, t, keyObject);
 
-        if (t.input.kdf !== "scrypt") {
-            it("[async] " + t.input.kdf, function (done) {
-                this.timeout(TIMEOUT);                
+                // asynchronous
                 keythereum.dump(
                     t.input.password,
                     t.input.privateKey,
                     t.input.salt,
                     t.input.iv,
                     t.input.kdf,
-                    function (keyObject) {
-                        if (keyObject.error) {
-                            done(keyObject);
+                    function (keyObj) {
+                        if (keyObj.error) {
+                            done(keyObj);
                         } else {
-                            checkKeyObj.structure(keythereum, keyObject);
-                            checkKeyObj.values(keythereum, t, keyObject);
+                            checkKeyObj.structure(keythereum, keyObj);
+                            checkKeyObj.values(keythereum, t, keyObj);
                             done();
                         }
                     }
                 );
-            });
-        }
+            }
+        });
     };
 
     test({
@@ -222,37 +464,35 @@ describe("Dump private key", function () {
         }
     });
 
-    if (!process.env.CONTINUOUS_INTEGRATION) {
-        test({
-            input: {
-                password: "testpassword",
-                privateKey: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
-                salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
-                iv: "83dbcc02d8ccb40e466191a123791e0e",
-                kdf: "scrypt"
-            },
-            expected: {
-                address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-                Crypto: {
-                    cipher: "aes-128-ctr",
-                    cipherparams: {
-                        iv: "83dbcc02d8ccb40e466191a123791e0e"
-                    },
-                    ciphertext: "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
-                    kdf: "scrypt",
-                    kdfparams: {
-                        dklen: 32,
-                        n: 262144,
-                        r: 1,
-                        p: 8,
-                        salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
-                    },
-                    mac: "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+    test({
+        input: {
+            password: "testpassword",
+            privateKey: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+            salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19",
+            iv: "83dbcc02d8ccb40e466191a123791e0e",
+            kdf: "scrypt"
+        },
+        expected: {
+            address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+            Crypto: {
+                cipher: "aes-128-ctr",
+                cipherparams: {
+                    iv: "83dbcc02d8ccb40e466191a123791e0e"
                 },
-                version: 3
-            }
-        });
-    }
+                ciphertext: "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+                kdf: "scrypt",
+                kdfparams: {
+                    dklen: 32,
+                    n: 262144,
+                    r: 1,
+                    p: 8,
+                    salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+                },
+                mac: "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+            },
+            version: 3
+        }
+    });
 
 });
 
@@ -280,17 +520,37 @@ describe("Export to file", function () {
     };
 
     it("export key to json file", function (done) {
+        this.timeout(TIMEOUT);
 
-        keythereum.exportToFile(json, null, function (keypath) {
+        // synchronous
+        var keypath = keythereum.exportToFile(json);
+        var outfile = keypath.split('/');
+        assert.isArray(outfile);
 
-            keypath = keypath.split('/');
-            assert.isArray(keypath);
+        outfile = outfile[outfile.length - 1];
+        assert.strictEqual(outfile.slice(0, 5), "UTC--");
+        assert.isAbove(outfile.indexOf(json.address), -1);
 
-            var outfile = keypath[keypath.length - 1];
-            assert.strictEqual(outfile.slice(0, 5), "UTC--");
-            assert.isAbove(outfile.indexOf(json.address), -1);
+        fs.unlinkSync(keypath);
 
-            done();
+        // asynchronous
+        keythereum.exportToFile(json, null, function (keyPath) {
+
+            var outFile = keyPath.split('/');
+            assert.isArray(outFile);
+
+            outFile = outFile[outFile.length - 1];
+            assert.strictEqual(outFile.slice(0, 5), "UTC--");
+            assert.isAbove(outFile.indexOf(json.address), -1);
+
+            fs.unlink(keyPath, function (exc) {
+                if (exc) {
+                    done(exc);
+                } else {
+                    done();
+                }
+            });
+
         });
 
     });
@@ -301,18 +561,18 @@ describe("Import from keystore file", function () {
 
     var test = function (t) {
 
-        it("[sync]  " + t.expected.Crypto.kdf + " import " + t.input.address + " from file", function () {
+        var label = "[" + t.expected.Crypto.kdf + "] import " + t.input.address + " from file";
+
+        it(label, function (done) {
             this.timeout(TIMEOUT);
+
             var keyObject = keythereum.importFromFile(t.input.address, t.input.datadir);
             checkKeyObj.structure(keythereum, keyObject);
             checkKeyObj.values(keythereum, t, keyObject);
-        });
 
-        it("[async] " + t.expected.Crypto.kdf + " import " + t.input.address + " from file", function (done) {
-            this.timeout(TIMEOUT);
-            keythereum.importFromFile(t.input.address, t.input.datadir, function (keyObject) {
-                checkKeyObj.structure(keythereum, keyObject);
-                checkKeyObj.values(keythereum, t, keyObject);
+            keythereum.importFromFile(t.input.address, t.input.datadir, function (keyObj) {
+                checkKeyObj.structure(keythereum, keyObj);
+                checkKeyObj.values(keythereum, t, keyObj);
                 done();
             });
         });
@@ -402,63 +662,61 @@ describe("Import from keystore file", function () {
             }
         });
 
-        if (!process.env.CONTINUOUS_INTEGRATION) {
-            test({
-                input: {
-                    address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
-                    datadir: path.join(__dirname, "fixtures")
-                },
-                expected: {
-                    address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
-                    Crypto: {
-                        cipher: "aes-128-ctr",
-                        ciphertext: "8da6723594a551ca467d24fdfc92e9948505eb97e07be43564e61f9152ca3089",
-                        cipherparams: {
-                            iv: "22a4c940f804e32a8dbd9ff4c90c913b"
-                        },
-                        kdf: "scrypt",
-                        kdfparams: {
-                            dklen: 32,
-                            n: 262144,
-                            p: 1,
-                            r: 8,
-                            salt: "b55a4440b57210c0bafdcc5422c9b9d04e9bd7ab1e3dccaf51be838e6aa7c037"
-                        },
-                        mac: "57d910c27c3ae13957062b8a3ac620cdbe27ed4e69292a852e072a4926e2eacf"
+        test({
+            input: {
+                address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
+                datadir: path.join(__dirname, "fixtures")
+            },
+            expected: {
+                address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
+                Crypto: {
+                    cipher: "aes-128-ctr",
+                    ciphertext: "8da6723594a551ca467d24fdfc92e9948505eb97e07be43564e61f9152ca3089",
+                    cipherparams: {
+                        iv: "22a4c940f804e32a8dbd9ff4c90c913b"
                     },
-                    id: "2a60191c-b718-4522-b487-fb7de1ad021f",
-                    version: 3
-                }
-            });
+                    kdf: "scrypt",
+                    kdfparams: {
+                        dklen: 32,
+                        n: 262144,
+                        p: 1,
+                        r: 8,
+                        salt: "b55a4440b57210c0bafdcc5422c9b9d04e9bd7ab1e3dccaf51be838e6aa7c037"
+                    },
+                    mac: "57d910c27c3ae13957062b8a3ac620cdbe27ed4e69292a852e072a4926e2eacf"
+                },
+                id: "2a60191c-b718-4522-b487-fb7de1ad021f",
+                version: 3
+            }
+        });
 
-            test({
-                input: {
-                    address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
-                    datadir: path.join(__dirname, "fixtures")
-                },
-                expected: {
-                    address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
-                    Crypto: {
-                        cipher: "aes-128-ctr",
-                        ciphertext: "07f5ba9d3a90b8c33f57e903bba7541d42ccc1676a38195c65ff936e2437e7d9",
-                        cipherparams: {
-                            iv: "5b65c6eb075c37685c08169b5a4d89d6"
-                        },
-                        kdf: "scrypt",
-                        kdfparams: {
-                            dklen: 32,
-                            n: 262144,
-                            p: 1,
-                            r: 8,
-                            salt: "ff3c29472b4cc9e6e35ffa983fd0cfed6260a373ec9eb3b9ad1a9285a4067d88"
-                        },
-                        mac: "aee429e0286079e5081ab4ec3040bfbf88aa38245bfbe9796405d3e1d376398b"
+        test({
+            input: {
+                address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
+                datadir: path.join(__dirname, "fixtures")
+            },
+            expected: {
+                address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
+                Crypto: {
+                    cipher: "aes-128-ctr",
+                    ciphertext: "07f5ba9d3a90b8c33f57e903bba7541d42ccc1676a38195c65ff936e2437e7d9",
+                    cipherparams: {
+                        iv: "5b65c6eb075c37685c08169b5a4d89d6"
                     },
-                    id: "aa84e172-a45a-4084-ab85-796b04bb719d",
-                    version: 3
-                }
-            });
-        }
+                    kdf: "scrypt",
+                    kdfparams: {
+                        dklen: 32,
+                        n: 262144,
+                        p: 1,
+                        r: 8,
+                        salt: "ff3c29472b4cc9e6e35ffa983fd0cfed6260a373ec9eb3b9ad1a9285a4067d88"
+                    },
+                    mac: "aee429e0286079e5081ab4ec3040bfbf88aa38245bfbe9796405d3e1d376398b"
+                },
+                id: "aa84e172-a45a-4084-ab85-796b04bb719d",
+                version: 3
+            }
+        });
 
     });
 
@@ -466,94 +724,92 @@ describe("Import from keystore file", function () {
 
     describe("Version 1", function () {
 
-        if (!process.env.CONTINUOUS_INTEGRATION) {
-            test({
-                input: {
-                    address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
-                    datadir: path.join(__dirname, "fixtures")
-                },
-                expected: {
-                    address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
-                    Crypto: {
-                        cipher: "aes-128-cbc",
-                        ciphertext: "edfa88ba7e67f26dd846e17fe5f1cabc0ef618949a5150287ac86b19dade146fb93df12716ae7e1b881f844738d60404",
-                        cipherparams: {
-                            iv: "5d99a672d1ecc115671b75f4e852f573"
-                        },
-                        kdf: "scrypt",
-                        kdfparams: {
-                            n: 262144,
-                            r: 8,
-                            p: 1,
-                            dklen: 32,
-                            salt: "231d12dd08d728db6705a73f460eaa61650c39fc12ac266f6ccd577bd3f7cc74"
-                        },
-                        mac: "ebe0dcc2e12a28a0b4a6040ec0198ed856ccf9f82718b989faee1e22626c36df",
-                        version: "1"
+        test({
+            input: {
+                address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
+                datadir: path.join(__dirname, "fixtures")
+            },
+            expected: {
+                address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
+                Crypto: {
+                    cipher: "aes-128-cbc",
+                    ciphertext: "edfa88ba7e67f26dd846e17fe5f1cabc0ef618949a5150287ac86b19dade146fb93df12716ae7e1b881f844738d60404",
+                    cipherparams: {
+                        iv: "5d99a672d1ecc115671b75f4e852f573"
                     },
-                    id: "294724c7-8508-496d-8fdf-eef62872bc10",
+                    kdf: "scrypt",
+                    kdfparams: {
+                        n: 262144,
+                        r: 8,
+                        p: 1,
+                        dklen: 32,
+                        salt: "231d12dd08d728db6705a73f460eaa61650c39fc12ac266f6ccd577bd3f7cc74"
+                    },
+                    mac: "ebe0dcc2e12a28a0b4a6040ec0198ed856ccf9f82718b989faee1e22626c36df",
                     version: "1"
-                }
-            });
+                },
+                id: "294724c7-8508-496d-8fdf-eef62872bc10",
+                version: "1"
+            }
+        });
 
-            test({
-                input: {
-                    address: "f0c4ee355432a7c7da12bdef04543723d110d591",
-                    datadir: path.join(__dirname, "fixtures")
-                },
-                expected: {
-                    address: "f0c4ee355432a7c7da12bdef04543723d110d591",
-                    Crypto: {
-                        cipher: "aes-128-cbc",
-                        ciphertext: "5dcd8d2678a492a88a5d4929e51016accf8cd5d3831989a85011642a463e24656c41e43159e9a35e978b79355dcb052c",
-                        cipherparams: {
-                            iv: "bda427191686ac4455142bc449543129"
-                        },
-                        kdf: "scrypt",
-                        kdfparams: {
-                            n: 262144,
-                            r: 8,
-                            p: 1,
-                            dklen: 32,
-                            salt: "98e3f47b814f5a55a2298cf92a2572a047c31d30c6b8bb4d1e5f60cc4a437653"
-                        },
-                        mac: "b2d8ef9d23fae559257bb52205b490776de6c94465d8947ecfbab9807604fb07",
-                        version: "1"
+        test({
+            input: {
+                address: "f0c4ee355432a7c7da12bdef04543723d110d591",
+                datadir: path.join(__dirname, "fixtures")
+            },
+            expected: {
+                address: "f0c4ee355432a7c7da12bdef04543723d110d591",
+                Crypto: {
+                    cipher: "aes-128-cbc",
+                    ciphertext: "5dcd8d2678a492a88a5d4929e51016accf8cd5d3831989a85011642a463e24656c41e43159e9a35e978b79355dcb052c",
+                    cipherparams: {
+                        iv: "bda427191686ac4455142bc449543129"
                     },
-                    id: "b5d5ef3a-d42e-4eeb-86ae-51a89131e38e",
+                    kdf: "scrypt",
+                    kdfparams: {
+                        n: 262144,
+                        r: 8,
+                        p: 1,
+                        dklen: 32,
+                        salt: "98e3f47b814f5a55a2298cf92a2572a047c31d30c6b8bb4d1e5f60cc4a437653"
+                    },
+                    mac: "b2d8ef9d23fae559257bb52205b490776de6c94465d8947ecfbab9807604fb07",
                     version: "1"
-                }
-            });
+                },
+                id: "b5d5ef3a-d42e-4eeb-86ae-51a89131e38e",
+                version: "1"
+            }
+        });
 
-            test({
-                input: {
-                    address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
-                    datadir: path.join(__dirname, "fixtures")
-                },
-                expected: {
-                    address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
-                    Crypto: {
-                        cipher: "aes-128-cbc",
-                        ciphertext: "b0d4523d2c49dcb0134fc5cd341e46099af70c32dbec776bf2d9665b8a5b1539ada61d1fe4962f4f536e1b980928e462",
-                        cipherparams: {
-                            iv: "e00bc9b2a963b7491a8fb6bb2750bea0"
-                        },
-                        kdf: "scrypt",
-                        kdfparams: {
-                            n: 262144,
-                            r: 8,
-                            p: 1,
-                            dklen: 32,
-                            salt: "ea373fd764ef47f9ae28ea59824000e9d4f4dab89fa52502ee3c1cfe03582c87"
-                        },
-                        mac: "3bfb8637cec761c2d7dd96f09d7eafaa39120360932cee9e2f6701efbe6426fb",
-                        version: "1"
+        test({
+            input: {
+                address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
+                datadir: path.join(__dirname, "fixtures")
+            },
+            expected: {
+                address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
+                Crypto: {
+                    cipher: "aes-128-cbc",
+                    ciphertext: "b0d4523d2c49dcb0134fc5cd341e46099af70c32dbec776bf2d9665b8a5b1539ada61d1fe4962f4f536e1b980928e462",
+                    cipherparams: {
+                        iv: "e00bc9b2a963b7491a8fb6bb2750bea0"
                     },
-                    id: "5790f0a7-56ae-44b5-9b75-9fe694d6bc54",
+                    kdf: "scrypt",
+                    kdfparams: {
+                        n: 262144,
+                        r: 8,
+                        p: 1,
+                        dklen: 32,
+                        salt: "ea373fd764ef47f9ae28ea59824000e9d4f4dab89fa52502ee3c1cfe03582c87"
+                    },
+                    mac: "3bfb8637cec761c2d7dd96f09d7eafaa39120360932cee9e2f6701efbe6426fb",
                     version: "1"
-                }
-            });
-        }
+                },
+                id: "5790f0a7-56ae-44b5-9b75-9fe694d6bc54",
+                version: "1"
+            }
+        });
     
     });
 
@@ -562,15 +818,17 @@ describe("Import from keystore file", function () {
 describe("Recover plaintext private key from key object", function () {
 
     var test = function (t) {
+        var label = "[" + t.input.keyObject.Crypto.kdf + "] "+
+            "recover key for " + t.input.keyObject.address;
 
-        it("[sync]  recover key for " + t.input.keyObject.address, function () {
+        it(label, function (done) {
             this.timeout(TIMEOUT);
+
+            // synchronous
             var dk = keythereum.recover(t.input.password, t.input.keyObject);
             assert.strictEqual(dk.toString("hex"), t.expected);
-        });
 
-        it("[async] recover key for " + t.input.keyObject.address, function (done) {
-            this.timeout(TIMEOUT);
+            // asynchronous
             keythereum.recover(t.input.password, t.input.keyObject, function (dk) {
                 assert.strictEqual(dk.toString("hex"), t.expected);
                 done();

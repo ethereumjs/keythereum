@@ -45,8 +45,10 @@ function createEthereumKey(passphrase) {
 describe("Unlock randomly-generated accounts in geth", function () {
 
     var test = function (t) {
+
         var label = "[" + t.kdf + " | " + t.hashRounds + " rounds] "+
             "generate key file using password '" + t.password +"'";
+
         it(label, function (done) {
             this.timeout(TIMEOUT*2);
 
@@ -61,57 +63,65 @@ describe("Unlock randomly-generated accounts in geth", function () {
 
                 fs.writeFile(PASSFILE, t.password, function (ex) {
                     var failed = false;
-                    if (ex) throw ex;
+                    if (ex) {
+                        done(ex);
+                    } else {
+                        GETH_FLAGS[1] = keyObject.address;
+                        GETH_FLAGS[3] = keyObject.address;
 
-                    GETH_FLAGS[1] = keyObject.address;
-                    GETH_FLAGS[3] = keyObject.address;
+                        var geth = cp.spawn(GETH_BIN, GETH_FLAGS);
+                        assert.isNotNull(geth);
 
-                    var geth = cp.spawn(GETH_BIN, GETH_FLAGS);
-                    assert.isNotNull(geth);
+                        geth.stdout.on("data", function (data) {
+                            var unlocked = "Account '" + keyObject.address + "' unlocked.";
+                            if (DEBUG) {
+                                process.stdout.write(chalk.cyan(data.toString()));
+                            }
+                            if (data.toString().indexOf(unlocked) > -1) {
+                                if (geth) geth.kill();
+                            }
+                        });
 
-                    geth.stdout.on("data", function (data) {
-                        var unlocked = "Account '" + keyObject.address + "' unlocked.";
-                        if (DEBUG) {
-                            process.stdout.write(chalk.cyan(data.toString()));
-                        }
-                        if (data.toString().indexOf(unlocked) > -1) {
+                        geth.stderr.on("data", function (data) {
+                            if (DEBUG) {
+                                process.stdout.write(chalk.yellow(data.toString()));
+                            }
+                        });
+
+                        geth.on("close", function (code) {
+                            assert.strictEqual(code, 2);
                             if (geth) geth.kill();
-                        }
-                    });
 
-                    geth.stderr.on("data", function (data) {
-                        if (DEBUG) {
-                            process.stdout.write(chalk.yellow(data.toString()));
-                        }
-                    });
-
-                    geth.on("close", function (code) {
-                        assert.strictEqual(code, 2);
-                        if (geth) geth.kill();
-                        
-                        fs.unlink(PASSFILE, function (exc) {
-                            if (exc) throw exc;
-                        
-                            fs.unlink(keypath, function (exc) {
-                                if (exc) throw exc;
-                                if (failed) {
-                                    done(new Error(
-                                        "account not unlocked after "+
-                                        TIMEOUT / 1000 + " seconds"
-                                    ));
+                            fs.unlink(PASSFILE, function (exc) {
+                                if (exc) {
+                                    done(exc);
                                 } else {
-                                    done();
+
+                                    fs.unlink(keypath, function (exc) {
+                                        if (exc) {
+                                            done(exc);
+                                        } else {
+                                            if (failed) {
+                                                done(new Error(
+                                                    "account not unlocked after "+
+                                                    TIMEOUT / 1000 + " seconds"
+                                                ));
+                                            } else {
+                                                done();
+                                            }
+                                        }
+                                    });
                                 }
                             });
                         });
-                    });
 
-                    // if not unlocked after 10 seconds, kill geth
-                    setTimeout(function () {
-                        failed = true;
-                        if (geth) geth.kill();
-                    }, TIMEOUT);
+                        // if not unlocked after 10 seconds, kill geth
+                        setTimeout(function () {
+                            failed = true;
+                            if (geth) geth.kill();
+                        }, TIMEOUT);
 
+                    }
                 });
             });
         });

@@ -135,7 +135,11 @@ Unit tests are in the `test` directory, and can be run with mocha:
 
     $ npm test
 
-`test/geth.js` is an integration test.  It generates 1000 random private keys, encrypts each key using a randomly-generated passphrase, dumps the encrypted key info to a JSON file, then spawns a geth instance and attempts to unlock each account using its passphrase and JSON file.  The passphrases are between 1 and 100 random bytes.  Each passphrase is tested in both hexadecimal and base-64 encodings, and with pbkdf2-sha256 and scrypt key derivation functions.
+`test/geth.js` is an integration test, which is run (along with `test/keys.js`) using:
+
+    $ npm run geth
+
+`geth.js` generates 1000 random private keys, encrypts each key using a randomly-generated passphrase, dumps the encrypted key info to a JSON file, then spawns a geth instance and attempts to unlock each account using its passphrase and JSON file.  The passphrases are between 1 and 100 random bytes.  Each passphrase is tested in both hexadecimal and base-64 encodings, and with pbkdf2-sha256 and scrypt key derivation functions.
 
 By default, the flags passed to geth are:
 
