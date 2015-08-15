@@ -19,18 +19,22 @@ var TIMEOUT = 5000;
 var DEBUG = false;
 
 var GETH_BIN = "geth";
+var GETH_PORT = "30304";
+var GETH_RPCPORT = "8547";
 var DATADIR = path.join(__dirname, "fixtures");
 var NETWORK_ID = "10101";
 
+var PASSFILE = path.join(DATADIR, ".password");
 var GETH_FLAGS = [
     "--etherbase", null,
     "--unlock", null,
     "--nodiscover",
     "--networkid", NETWORK_ID,
+    "--port", GETH_PORT,
+    "--rpcport", GETH_RPCPORT,
     "--datadir", DATADIR,
-    "--password", null
+    "--password", PASSFILE
 ];
-var PASSFILE = path.join(DATADIR, ".password");
 
 function createEthereumKey(passphrase) {
     var dk = keythereum.create();
@@ -61,7 +65,6 @@ describe("Unlock randomly-generated accounts in geth", function () {
 
                     GETH_FLAGS[1] = keyObject.address;
                     GETH_FLAGS[3] = keyObject.address;
-                    GETH_FLAGS[GETH_FLAGS.length - 1] = PASSFILE;
 
                     var geth = cp.spawn(GETH_BIN, GETH_FLAGS);
                     assert.isNotNull(geth);
