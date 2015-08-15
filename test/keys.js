@@ -283,7 +283,7 @@ describe("Export to file", function () {
 
         keythereum.exportToFile(json, null, function (keypath) {
 
-            var keypath = keypath.split('/');
+            keypath = keypath.split('/');
             assert.isArray(keypath);
 
             var outfile = keypath[keypath.length - 1];

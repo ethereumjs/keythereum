@@ -547,7 +547,7 @@ module.exports = {
             }
 
         } else {
-            throw new Error("method only available in Node.js")
+            throw new Error("method only available in Node.js");
         }
     }
 
