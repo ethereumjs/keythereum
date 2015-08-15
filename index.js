@@ -5,12 +5,11 @@
 
 "use strict";
 
-var crypto;
-if ((typeof module !== "undefined") && process && !process.browser) {
-    crypto = require("crypto");
-} else {
-    crypto = require("crypto-browserify");
-}
+var NODE_JS = (typeof module !== "undefined") && process && !process.browser;
+
+var path = (NODE_JS) ? require("path") : null;
+var fs = (NODE_JS) ? require("fs") : null;
+var crypto = (NODE_JS) ? require("crypto") : require("crypto-browserify");
 var uuid = require("node-uuid");
 var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
@@ -18,12 +17,7 @@ var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt")(67108864);
 
-function FileNotFoundError(message) {
-    this.message = "File Not Found: " + message;
-}
-
-FileNotFoundError.prototype = new Error();
-
+// convert string to buffer
 function str2buf(str, enc) {
     if (str.constructor === String) {
         if (enc) {
@@ -41,6 +35,7 @@ function str2buf(str, enc) {
     return str;
 }
 
+// convert hex to UTF-16LE
 function hex2utf16le(input) {
     var output = '';
     for (var i = 0, l = input.length; i < l; i += 4) {
@@ -456,24 +451,45 @@ module.exports = {
      * Export formatted JSON to keystore file.
      * (Note: Node.js only!)
      * @param {Object} keyObject Keystore object.
+     * @param {string=} keystore Path to keystore folder (default: "keystore").
      * @param {function=} cb Callback function (optional).
-     * @return {Object}
+     * @return {string} JSON filename.
      */
-    exportToFile: function (keyObject, cb) {
-        var outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
-        require("fs").writeFile(
-            "keystore/" + outfile,
-            JSON.stringify(keyObject),
-            function (ex) {
-                if (ex) throw ex;
-                console.log("Saved to file:\nkeystore/" + outfile);
+    exportToFile: function (keyObject, keystore, cb) {
+        keystore = keystore || "keystore";
+
+        var outfile = "UTC--" + new Date().toISOString()+
+            "00000--" + keyObject.address;
+        var outpath = path.join(keystore, outfile);
+        var json = JSON.stringify(keyObject);
+
+        if (NODE_JS) {
+
+            if (cb && cb.constructor === Function) {
+                
+                fs.writeFile(outpath, json, function (ex) {
+                    if (ex) throw ex;
+                    if (cb && cb.constructor === Function) cb(outpath);
+                });
+
+            } else {
+
+                fs.writeFileSync(outpath, json);
                 console.log(
-                    "\nTo use with geth, copy this file to your Ethereum "+
+                    "Saved to file:\n" + outpath + "\n"+
+                    "To use with geth, copy this file to your Ethereum "+
                     "keystore folder (usually ~/.ethereum/keystore)."
                 );
-                if (cb && cb.constructor === Function) cb(outfile);
+                return outpath;
             }
-        );
+
+        } else {
+            if (cb && cb.constructor === Function) {
+                cb(outpath);
+            } else {
+                return outpath;
+            }
+        }
     },
 
     /**
@@ -490,9 +506,9 @@ module.exports = {
             var filepath = null;
             for (var i = 0, len = files.length; i < len; ++i) {
                 if (files[i].indexOf(address) > -1) {
-                    filepath = p.join(keystore, files[i]);
+                    filepath = path.join(keystore, files[i]);
                     if (fs.lstatSync(filepath).isDirectory()) {
-                        filepath = p.join(filepath, files[i]);
+                        filepath = path.join(filepath, files[i]);
                     }
                     break;
                 }
@@ -500,33 +516,38 @@ module.exports = {
             return filepath;
         }
 
-        var p = require("path");
-        var fs = require("fs");
-        datadir = datadir || p.join(process.env.HOME, ".ethereum");
-        var keystore = p.join(datadir, "keystore");
+        if (NODE_JS) {
 
-        if (cb && cb.constructor === Function) {
-            fs.readdir(keystore, function (ex, files) {
-                if (ex) throw ex;
-                var filepath = findKeyfile(address, files);
+            datadir = datadir || path.join(process.env.HOME, ".ethereum");
+            var keystore = path.join(datadir, "keystore");
+
+            if (cb && cb.constructor === Function) {
+                fs.readdir(keystore, function (ex, files) {
+                    if (ex) throw ex;
+                    var filepath = findKeyfile(address, files);
+                    if (filepath) {
+                        cb(JSON.parse(fs.readFileSync(filepath)));
+                    } else {
+                        throw new Error(
+                            "could not find key file for address " + address
+                        );
+                    }
+                });
+
+            } else {
+
+                var filepath = findKeyfile(address, fs.readdirSync(keystore));
                 if (filepath) {
-                    cb(JSON.parse(fs.readFileSync(filepath)));
+                    return JSON.parse(fs.readFileSync(filepath));
                 } else {
-                    throw new FileNotFoundError(
+                    throw new Error(
                         "could not find key file for address " + address
                     );
                 }
-            });
+            }
 
         } else {
-            var filepath = findKeyfile(address, fs.readdirSync(keystore));
-            if (filepath) {
-                return JSON.parse(fs.readFileSync(filepath));
-            } else {
-                throw new FileNotFoundError(
-                    "could not find key file for address " + address
-                );
-            }
+            throw new Error("method only available in Node.js")
         }
     }
 

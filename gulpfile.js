@@ -18,4 +18,13 @@ gulp.task("build", function (callback) {
     });
 });
 
+gulp.task("keygen", function (callback) {
+    var keythereum = require('./');
+    var dk = keythereum.create();
+    var keyobj = keythereum.dump("testpass", dk.privateKey, dk.salt, dk.iv, null);
+    keythereum.exportToFile(keyobj, null, function () {
+        callback();
+    });
+});
+
 gulp.task("default", ["clean", "build"]);

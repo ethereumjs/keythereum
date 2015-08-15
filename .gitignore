@@ -2,3 +2,12 @@ node_modules
 *.log
 coverage
 overflow
+*.html
+data
+test/fixtures/nodekey
+test/fixtures/.password
+test/fixtures/chaindata
+test/fixtures/dapp
+test/fixtures/blockchain
+test/fixtures/extra
+test/fixtures/state
