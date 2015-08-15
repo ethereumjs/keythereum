@@ -41,6 +41,8 @@ function createEthereumKey(passphrase) {
     return JSON.stringify(key);
 }
 
+keythereum.constants.quiet = true;
+
 describe("Unlock randomly-generated accounts in geth", function () {
 
     var test = function (t) {
