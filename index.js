@@ -265,24 +265,33 @@ module.exports = {
 
             // generate private key
             crypto.randomBytes(this.constants.keyBytes, function (ex, privateKey) {
-                if (ex) cb(ex);
+                if (ex) {
+                    cb(ex);
+                } else {
 
-                // generate random initialization vector
-                crypto.randomBytes(self.constants.ivBytes, function (ex, iv) {
-                    if (ex) cb(ex);
+                    // generate random initialization vector
+                    crypto.randomBytes(self.constants.ivBytes, function (ex, iv) {
+                        if (ex) {
+                            cb(ex);
+                        } else {
 
-                    // generate random salt
-                    crypto.randomBytes(self.constants.keyBytes, function (ex, salt) {
-                        if (ex) cb(ex);
-                        
-                        cb({
-                            privateKey: privateKey,
-                            iv: iv,
-                            salt: salt
-                        });
-                    });
+                            // generate random salt
+                            crypto.randomBytes(self.constants.keyBytes, function (ex, salt) {
+                                if (ex) {
+                                    cb(ex);
+                                } else {
 
-                }); // crypto.randomBytes
+                                    cb({
+                                        privateKey: privateKey,
+                                        iv: iv,
+                                        salt: salt
+                                    });
+                                }
+                            });
+                        }
+
+                    }); // crypto.randomBytes
+                }
 
             }); // crypto.randomBytes
 

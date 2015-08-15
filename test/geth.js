@@ -10,7 +10,6 @@ var path = require("path");
 var cp = require("child_process");
 var crypto = require("crypto");
 var assert = require("chai").assert;
-var chalk = require("chalk");
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 
@@ -75,7 +74,7 @@ describe("Unlock randomly-generated accounts in geth", function () {
                         geth.stdout.on("data", function (data) {
                             var unlocked = "Account '" + keyObject.address + "' unlocked.";
                             if (DEBUG) {
-                                process.stdout.write(chalk.cyan(data.toString()));
+                                process.stdout.write(data.toString());
                             }
                             if (data.toString().indexOf(unlocked) > -1) {
                                 if (geth) geth.kill();
@@ -84,7 +83,7 @@ describe("Unlock randomly-generated accounts in geth", function () {
 
                         geth.stderr.on("data", function (data) {
                             if (DEBUG) {
-                                process.stdout.write(chalk.yellow(data.toString()));
+                                process.stdout.write(data.toString());
                             }
                         });
 
