@@ -18,14 +18,18 @@ Installation
 Usage
 -----
 
-To use keythereum, just `require` it:
+To use keythereum in Node.js, just `require` it:
 ```javascript
 var keythereum = require("keythereum");
+```
+A minified, browserified file `dist/keythereum.js` is included for use in the browser.  Including this file simply attaches the `keythereum` object to `window`:
+```html
+<script src="dist/keythereum.js" type="text/javascript"></script>
 ```
 
 ### Key creation
 
-Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key.  `create` is synchronous if no arguments are provided, and asynchronous if a callback function provided:
+Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key.  `create` is synchronous if no arguments are provided, and asynchronous if it is passed a callback function:
 ```javascript
 // synchronous
 var dk = keythereum.create();
@@ -139,7 +143,7 @@ Unit tests are in the `test` directory, and can be run with mocha:
 
     $ npm run geth
 
-`geth.js` generates 1000 random private keys, encrypts each key using a randomly-generated passphrase, dumps the encrypted key info to a JSON file, then spawns a geth instance and attempts to unlock each account using its passphrase and JSON file.  The passphrases are between 1 and 100 random bytes.  Each passphrase is tested in both hexadecimal and base-64 encodings, and with pbkdf2-sha256 and scrypt key derivation functions.
+`geth.js` generates 1000 random private keys, encrypts each key using a randomly-generated passphrase, dumps the encrypted key info to a JSON file, then spawns a geth instance and attempts to unlock each account using its passphrase and JSON file.  The passphrases are between 1 and 100 random bytes.  Each passphrase is tested in both hexadecimal and base-64 encodings, and with PBKDF2-SHA256 and scrypt key derivation functions.
 
 By default, the flags passed to geth are:
 
