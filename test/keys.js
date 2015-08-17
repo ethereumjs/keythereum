@@ -97,39 +97,54 @@ describe("Derive Ethereum address from private key", function () {
 
 describe("Create random private key, salt and initialization vector", function () {
 
-    var test = function (dk) {
+    var test = function (dk, params) {
 
         assert.property(dk, "privateKey");
         assert.isNotNull(dk.privateKey);
         assert.instanceOf(dk.privateKey, Buffer);
-        assert.strictEqual(dk.privateKey.length, keythereum.constants.keyBytes);
+        assert.strictEqual(dk.privateKey.length, params.keyBytes);
 
         assert.property(dk, "iv");
         assert.isNotNull(dk.iv);
         assert.instanceOf(dk.iv, Buffer);
-        assert.strictEqual(dk.iv.length, keythereum.constants.ivBytes);
+        assert.strictEqual(dk.iv.length, params.ivBytes);
 
         assert.property(dk, "salt");
         assert.isNotNull(dk.salt);
         assert.instanceOf(dk.salt, Buffer);
-        assert.strictEqual(dk.salt.length, keythereum.constants.keyBytes);
+        assert.strictEqual(dk.salt.length, params.keyBytes);
     };
 
-    var runtests = function (done) {
+    var runtests = function (i) {
 
-        // synchronous
-        test(keythereum.create());
+        var runtest = function (params) {
+            it("create key " + i + ": " + JSON.stringify(params), function (done) {
 
-        // asynchronous
-        keythereum.create(function (dk) {
-            test(dk);
-            done();
-        });
+                // synchronous
+                test(keythereum.create(), keythereum.constants);
+                test(keythereum.create(params), params);
+
+                // asynchronous
+                keythereum.create(null, function (dk) {
+                    test(dk, keythereum.constants);
+                    keythereum.create(params, function (dk) {
+                        test(dk, params);
+                        done();
+                    });
+                });
+
+            });
+        };
+
+        runtest(keythereum.constants);
+        runtest({ keyBytes: 16, ivBytes: 16 });
+        runtest({ keyBytes: 32, ivBytes: 16 });
+        runtest({ keyBytes: 64, ivBytes: 16 });
+        runtest({ keyBytes: 128, ivBytes: 16 });
+        runtest({ keyBytes: 256, ivBytes: 16 });
     };
 
-    for (var i = 0; i < 25; ++i) {
-        it("create key " + i, runtests);
-    }
+    for (var i = 0; i < 25; ++i) runtests(i);
 
 });
 
@@ -317,7 +332,7 @@ describe("Key derivation", function () {
             var derivedKey = keythereum.deriveKey(
                 t.input.password,
                 t.input.salt,
-                t.input.kdf
+                { kdf: t.input.kdf }
             );
             if (derivedKey.error) {
                 done(derivedKey);
@@ -328,7 +343,7 @@ describe("Key derivation", function () {
                 keythereum.deriveKey(
                     t.input.password,
                     t.input.salt,
-                    t.input.kdf,
+                    { kdf: t.input.kdf },
                     function (derivedKey) {
                         if (derivedKey.error) {
                             done(derivedKey);
@@ -403,7 +418,7 @@ describe("Dump private key", function () {
                 t.input.privateKey,
                 t.input.salt,
                 t.input.iv,
-                t.input.kdf
+                { kdf: t.input.kdf }
             );
             if (keyObject.error) {
                 done(keyObject);
@@ -417,7 +432,7 @@ describe("Dump private key", function () {
                     t.input.privateKey,
                     t.input.salt,
                     t.input.iv,
-                    t.input.kdf,
+                    { kdf: t.input.kdf },
                     function (keyObj) {
                         if (keyObj.error) {
                             done(keyObj);

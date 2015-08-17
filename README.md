@@ -29,10 +29,14 @@ A minified, browserified file `dist/keythereum.js` is included for use in the br
 
 ### Key creation
 
-Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key.  `create` is synchronous if no arguments are provided, and asynchronous if it is passed a callback function:
+Generate a new random private key (256 bit), as well as the salt (256 bit) used by the key derivation function, and the initialization vector (128 bit) used to AES-128-CTR encrypt the key.  `create` is asynchronous if it is passed a callback function, and synchronous otherwise.
 ```javascript
+// optional private key and initialization vector sizes in bytes
+// (if params is not passed to create, keythereum.constants is used by default)
+var params = { keyBytes: 32, ivBytes: 16 };
+
 // synchronous
-var dk = keythereum.create();
+var dk = keythereum.create(params);
 // dk:
 {
     privateKey: <Buffer ...>,
@@ -41,7 +45,7 @@ var dk = keythereum.create();
 }
 
 // asynchronous
-keythereum.create(function (dk) {
+keythereum.create(params, function (dk) {
     // do stuff!
 });
 ```
@@ -53,10 +57,22 @@ You will need to specify a password and (optionally) a key derivation function. 
 var password = "wheethereum";
 var kdf = "pbkdf2"; // or "scrypt" to use the scrypt kdf
 ```
-The `dump` function is used to export key info to keystore ["secret-storage" format](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition).  If a callback function is supplied as the sixth parameter to `dump`, it will run asynchronously (for PBKDF2; scrypt is synchronous-only for now):
+The `dump` function is used to export key info to keystore ["secret-storage" format](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition).  If a callback function is supplied as the sixth parameter to `dump`, it will run asynchronously:
 ```javascript
+// if options is not passed to dump, it will use the values in
+// keythereum.constants by default
+var options = {
+    kdf: "pbkdf2",
+    cipher: "aes-128-ctr",
+    kdfparams: {
+        c: 262144,
+        dklen: 32,
+        prf: "hmac-sha256"
+    }
+};
+
 // synchronous
-var keyObject = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
+var keyObject = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, options);
 // keyObject:
 {
     address: '008aeeda4d805471df9b2a5b0f38a0c3bcba786b',
@@ -80,12 +96,11 @@ var keyObject = keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf);
 }
 
 // asynchronous
-keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, kdf, function (keyObject) {
+keythereum.dump(password, dk.privateKey, dk.salt, dk.iv, options, function (keyObject) {
     // do stuff!
 });
-
 ```
-Note that this creates an object and not a JSON string.  In Node, the `exportToFile` method provides an easy way to export this formatted key object to file.  It creates a JSON file in the `keystore` sub-directory, and uses geth's current file-naming convention (ISO timestamp concatenated with the key's derived Ethereum address).
+`dump` creates an object and not a JSON string.  In Node, the `exportToFile` method provides an easy way to export this formatted key object to file.  It creates a JSON file in the `keystore` sub-directory, and uses geth's current file-naming convention (ISO timestamp concatenated with the key's derived Ethereum address).
 ```
 keythereum.exportToFile(keyObject);
 ```

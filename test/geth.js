@@ -89,8 +89,7 @@ describe("Unlock randomly-generated accounts in geth", function () {
                             }
                         });
 
-                        geth.on("close", function (code) {
-                            assert.strictEqual(code, 2);
+                        geth.on("close", function () {
                             if (geth) geth.kill();
 
                             fs.unlink(PASSFILE, function (exc) {

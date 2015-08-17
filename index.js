@@ -80,16 +80,17 @@ module.exports = {
      * @param {buffer|string} plaintext Text to be encrypted.
      * @param {buffer|string} key Secret key.
      * @param {buffer|string} iv Initialization vector.
+     * @param {string=} algo Encryption algorithm (default: constants.cipher).
      * @return {string} Base64 encrypted text.
      */
-    encrypt: function (plaintext, key, iv) {
+    encrypt: function (plaintext, key, iv, algo) {
         var cipher, ciphertext;
 
         if (plaintext.constructor === String) plaintext = str2buf(plaintext);
         if (key.constructor === String) key = str2buf(key);
         if (iv.constructor === String) iv = str2buf(iv);
 
-        cipher = crypto.createCipheriv(this.constants.cipher, key, iv);
+        cipher = crypto.createCipheriv(algo || this.constants.cipher, key, iv);
         ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
 
         return ciphertext + cipher.final("base64");
@@ -100,16 +101,17 @@ module.exports = {
      * @param {buffer|string} ciphertext Text to be decrypted.
      * @param {buffer|string} key Secret key.
      * @param {buffer|string} iv Initialization vector.
+     * @param {string=} algo Encryption algorithm (default: constants.cipher).
      * @return {string} Hex decryped text.
      */
-    decrypt: function (ciphertext, key, iv) {
+    decrypt: function (ciphertext, key, iv, algo) {
         var decipher, plaintext;
 
         if (ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
         if (key.constructor === String) key = str2buf(key);
         if (iv.constructor === String) iv = str2buf(iv);
 
-        decipher = crypto.createDecipheriv(this.constants.cipher, key, iv);
+        decipher = crypto.createDecipheriv(algo || this.constants.cipher, key, iv);
         plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
 
         return plaintext + decipher.final("hex");
@@ -159,12 +161,17 @@ module.exports = {
      * Derive secret key from password with key dervation function.
      * @param {string|buffer} password User-supplied password.
      * @param {string|buffer} salt Randomly generated salt.
-     * @param {string=} kdf Key derivation function (default: pbkdf2).
+     * @param {Object=} options Encryption parameters.
+     * @param {string=} options.kdf Key derivation function (default: pbkdf2).
+     * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
+     * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
      * @param {function=} cb Callback function (optional).
      * @return {buffer} Secret key derived from password.
      */
-    deriveKey: function (password, salt, kdf, cb) {
+    deriveKey: function (password, salt, options, cb) {
         if (password && salt) {
+            options = options || {};
+            options.kdfparams = options.kdfparams || {};
 
             // convert strings to buffers
             if (password.constructor === String)
@@ -173,7 +180,7 @@ module.exports = {
                 salt = str2buf(salt);
 
             // use scrypt as key derivation function
-            if (kdf === "scrypt") {
+            if (options.kdf === "scrypt") {
 
                 try {
 
@@ -184,10 +191,10 @@ module.exports = {
                                 scrypt.to_hex(scrypt.crypto_scrypt(
                                     password,
                                     salt,
-                                    this.constants.scrypt.n,
-                                    this.constants.scrypt.r,
-                                    this.constants.scrypt.p,
-                                    this.constants.scrypt.dklen
+                                    options.kdfparams.n || this.constants.scrypt.n,
+                                    options.kdfparams.r || this.constants.scrypt.r,
+                                    options.kdfparams.p || this.constants.scrypt.p,
+                                    options.kdfparams.dklen || this.constants.scrypt.dklen
                                 )
                             ), "hex"));
                         }.bind(this), 0);
@@ -198,10 +205,10 @@ module.exports = {
                             scrypt.to_hex(scrypt.crypto_scrypt(
                                 password,
                                 salt,
-                                this.constants.scrypt.n,
-                                this.constants.scrypt.r,
-                                this.constants.scrypt.p,
-                                this.constants.scrypt.dklen
+                                options.kdfparams.n || this.constants.scrypt.n,
+                                options.kdfparams.r || this.constants.scrypt.r,
+                                options.kdfparams.p || this.constants.scrypt.p,
+                                options.kdfparams.dklen || this.constants.scrypt.dklen
                             )
                         ), "hex");
 
@@ -218,14 +225,17 @@ module.exports = {
             // use default key derivation function (PBKDF2)
             } else {
 
+                var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+                if (prf === "hmac-sha256") prf = "sha256";
+
                 if (cb && cb.constructor === Function) {
 
                     crypto.pbkdf2(
                         password,
                         salt,
-                        this.constants.pbkdf2.c,
-                        this.constants.pbkdf2.dklen,
-                        this.constants.pbkdf2.hash,
+                        options.kdfparams.c || this.constants.pbkdf2.c,
+                        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                        prf,
                         function (ex, derivedKey) {
                             if (ex) return ex;
                             cb(derivedKey);
@@ -238,9 +248,9 @@ module.exports = {
                         return crypto.pbkdf2Sync(
                             password,
                             salt,
-                            this.constants.pbkdf2.c,
-                            this.constants.pbkdf2.dklen,
-                            this.constants.pbkdf2.hash
+                            options.kdfparams.c || this.constants.pbkdf2.c,
+                            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                            prf
                         );
 
                     } catch (ex) {
@@ -254,29 +264,34 @@ module.exports = {
     /**
      * Generate random numbers for private key, initialization vector,
      * and salt (for key derivation).
+     * @param {Object=} params Encryption options (defaults: constants).
+     * @param {string=} params.keyBytes Private key size in bytes.
+     * @param {string=} params.ivBytes Initialization vector size in bytes.
      * @param {function=} cb Callback function (optional).
      * @return {Object<string,buffer>} Private key, IV and salt.
      */
-    create: function (cb) {
-        var self = this;
+    create: function (params, cb) {
+        params = params || {};
+        var keyBytes = params.keyBytes || this.constants.keyBytes;
+        var ivBytes = params.ivBytes || this.constants.ivBytes;
 
         // asynchronous key generation if callback is provided
         if (cb && cb.constructor === Function) {
 
             // generate private key
-            crypto.randomBytes(this.constants.keyBytes, function (ex, privateKey) {
+            crypto.randomBytes(keyBytes, function (ex, privateKey) {
                 if (ex) {
                     cb(ex);
                 } else {
 
                     // generate random initialization vector
-                    crypto.randomBytes(self.constants.ivBytes, function (ex, iv) {
+                    crypto.randomBytes(ivBytes, function (ex, iv) {
                         if (ex) {
                             cb(ex);
                         } else {
 
                             // generate random salt
-                            crypto.randomBytes(self.constants.keyBytes, function (ex, salt) {
+                            crypto.randomBytes(keyBytes, function (ex, salt) {
                                 if (ex) {
                                     cb(ex);
                                 } else {
@@ -300,9 +315,9 @@ module.exports = {
 
             try {
                 return {
-                    privateKey: crypto.randomBytes(this.constants.keyBytes),
-                    iv: crypto.randomBytes(this.constants.ivBytes),
-                    salt: crypto.randomBytes(this.constants.keyBytes)
+                    privateKey: crypto.randomBytes(keyBytes),
+                    iv: crypto.randomBytes(ivBytes),
+                    salt: crypto.randomBytes(keyBytes)
                 };
 
             // couldn't generate key: not enough entropy?
@@ -318,24 +333,28 @@ module.exports = {
      * @param {buffer} privateKey Private key.
      * @param {buffer} salt Randomly generated salt.
      * @param {buffer} iv Initialization vector.
-     * @param {string=} kdf Key derivation function (default: pbkdf2).
-     * @param {function=} cb Callback function (optional).
+     * @param {Object=} options Encryption parameters.
+     * @param {string=} options.kdf Key derivation function (default: pbkdf2).
+     * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
+     * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
      * @return {Object}
      */
-    marshal: function(derivedKey, privateKey, salt, iv, kdf) {
-        var ciphertext, json;
+    marshal: function(derivedKey, privateKey, salt, iv, options) {
+        var ciphertext, keyObject;
+        options = options || {};
+        options.kdfparams = options.kdfparams || {};
 
-        // encryption key: first 16 bytes of derived key
+        // encrypt using first 16 bytes of derived key
         ciphertext = new Buffer(this.encrypt(
             privateKey,
             derivedKey.slice(0, 16),
             iv
         ), "base64").toString("hex");
 
-        json = {
+        keyObject = {
             address: this.privateKeyToAddress(privateKey).slice(2),
             Crypto: {
-                cipher: this.constants.cipher,
+                cipher: options.cipher || this.constants.cipher,
                 ciphertext: ciphertext,
                 cipherparams: { iv: iv.toString("hex") },
                 mac: this.getMAC(derivedKey, ciphertext)
@@ -344,27 +363,27 @@ module.exports = {
             version: 3
         };
 
-        if (kdf === "scrypt") {
-            json.Crypto.kdf = "scrypt";
-            json.Crypto.kdfparams = {
-                dklen: this.constants.scrypt.dklen,
-                n: this.constants.scrypt.n,
-                r: this.constants.scrypt.r,
-                p: this.constants.scrypt.p,
+        if (options.kdf === "scrypt") {
+            keyObject.Crypto.kdf = "scrypt";
+            keyObject.Crypto.kdfparams = {
+                dklen: options.kdfparams.dklen || this.constants.scrypt.dklen,
+                n: options.kdfparams.n || this.constants.scrypt.n,
+                r: options.kdfparams.r || this.constants.scrypt.r,
+                p: options.kdfparams.p || this.constants.scrypt.p,
                 salt: salt.toString("hex")
             };
 
         } else {
-            json.Crypto.kdf = "pbkdf2";
-            json.Crypto.kdfparams = {
-                c: this.constants.pbkdf2.c,
-                dklen: this.constants.pbkdf2.dklen,
-                prf: this.constants.pbkdf2.prf,
+            keyObject.Crypto.kdf = "pbkdf2";
+            keyObject.Crypto.kdfparams = {
+                c: options.kdfparams.c || this.constants.pbkdf2.c,
+                dklen: options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                prf: options.kdfparams.prf || this.constants.pbkdf2.prf,
                 salt: salt.toString("hex")
             };
         }
 
-        return json;
+        return keyObject;
     },
 
     /**
@@ -373,31 +392,45 @@ module.exports = {
      * @param {string|buffer} privateKey Private key.
      * @param {string|buffer} salt Randomly generated salt.
      * @param {string|buffer} iv Initialization vector.
-     * @param {string=} kdf Key derivation function (default: pbkdf2).
+     * @param {Object=} options Encryption parameters.
+     * @param {string=} options.kdf Key derivation function (default: pbkdf2).
+     * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
+     * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
      * @param {function=} cb Callback function (optional).
      * @return {Object}
      */
-    dump: function (password, privateKey, salt, iv, kdf, cb) {
-
+    dump: function (password, privateKey, salt, iv, options, cb) {
+        options = options || {};
         if (iv.constructor === String) iv = str2buf(iv);
         if (privateKey.constructor === String) privateKey = str2buf(privateKey);
 
         // asynchronous if callback provided
         if (cb && cb.constructor === Function) {
 
-            this.deriveKey(password, salt, kdf, function (derivedKey) {
-                cb(this.marshal(derivedKey, privateKey, salt, iv, kdf));
-            }.bind(this));
+            this.deriveKey(
+                password,
+                salt,
+                options,
+                function (derivedKey) {
+                    cb(this.marshal(
+                        derivedKey,
+                        privateKey,
+                        salt,
+                        iv,
+                        options
+                    ));
+                }.bind(this)
+            );
 
         // synchronous if no callback
         } else {
 
             return this.marshal(
-                this.deriveKey(password, salt, kdf),
+                this.deriveKey(password, salt, options),
                 privateKey,
                 salt,
                 iv,
-                kdf
+                options
             );
         }
     },
@@ -454,12 +487,12 @@ module.exports = {
 
         // derive secret key from password
         if (cb && cb.constructor === Function) {
-            this.deriveKey(password, salt, keyObject.Crypto.kdf, function (derivedKey) {
+            this.deriveKey(password, salt, keyObject.Crypto, function (derivedKey) {
                 cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
             });
         } else {
             return verifyAndDecrypt(
-                this.deriveKey(password, salt, keyObject.Crypto.kdf),
+                this.deriveKey(password, salt, keyObject.Crypto),
                 salt,
                 iv,
                 ciphertext
@@ -488,8 +521,7 @@ module.exports = {
             }
         }.bind(this);
 
-        var outfile = "UTC--" + new Date().toISOString()+
-            "00000--" + keyObject.address;
+        var outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
         var outpath = path.join(keystore, outfile);
         var json = JSON.stringify(keyObject);
 

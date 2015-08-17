@@ -18,14 +18,20 @@ gulp.task("lint", function (callback) {
 });
 
 gulp.task("build", function (callback) {
-    del([path.join("dist", "keythereum.js")], function (ex) {
+    del([path.join("dist", "*.js")], function (ex) {
         if (ex) throw ex;
         cp.exec("./node_modules/browserify/bin/cmd.js ./exports.js | "+
-                "./node_modules/uglify-js/bin/uglifyjs > ./dist/keythereum.js",
+                "./node_modules/uglify-js/bin/uglifyjs > ./dist/keythereum.min.js",
                 function (err, stdout) {
             if (err) throw err;
             if (stdout) process.stdout.write(stdout);
-            callback();
+            cp.exec("./node_modules/browserify/bin/cmd.js ./exports.js "+
+                    "> ./dist/keythereum.js",
+                    function (err, stdout) {
+                if (err) throw err;
+                if (stdout) process.stdout.write(stdout);
+                callback();
+            });
         });
     });
 });
