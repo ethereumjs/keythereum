@@ -22,9 +22,9 @@ To use keythereum in Node.js, just `require` it:
 ```javascript
 var keythereum = require("keythereum");
 ```
-A minified, browserified file `dist/keythereum.js` is included for use in the browser.  Including this file simply attaches the `keythereum` object to `window`:
+A minified, browserified file `dist/keythereum.min.js` is included for use in the browser.  Including this file simply attaches the `keythereum` object to `window`:
 ```html
-<script src="dist/keythereum.js" type="text/javascript"></script>
+<script src="dist/keythereum.min.js" type="text/javascript"></script>
 ```
 
 ### Key creation

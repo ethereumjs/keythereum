@@ -7,7 +7,7 @@ var del = require("del");
 var keythereum = require("./");
 
 gulp.task("clean", function (callback) {
-    del([path.join("dist", "keythereum.js")], callback);
+    del([path.join("dist", "*.js")], callback);
 });
 
 gulp.task("lint", function (callback) {
@@ -18,8 +18,8 @@ gulp.task("lint", function (callback) {
 });
 
 gulp.task("build", function (callback) {
-    del([path.join("dist", "*.js")], function (ex) {
-        if (ex) throw ex;
+    del([path.join("dist", "*.js")], function (err) {
+        if (err) throw err;
         cp.exec("./node_modules/browserify/bin/cmd.js ./exports.js | "+
                 "./node_modules/uglify-js/bin/uglifyjs > ./dist/keythereum.min.js",
                 function (err, stdout) {

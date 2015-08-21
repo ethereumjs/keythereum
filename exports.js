@@ -1,2 +1,2 @@
-var keythereum = global.keythereum || require('./index');
+var keythereum = global.keythereum || require('./');
 global.keythereum = keythereum;
