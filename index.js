@@ -560,7 +560,7 @@ module.exports = {
      * @return {Object} Keystore data file's contents.
      */
     importFromFile: function (address, datadir, cb) {
-
+        address = address.replace('0x', '');
         function findKeyfile(address, files) {
             var filepath = null;
             for (var i = 0, len = files.length; i < len; ++i) {
