@@ -6,34 +6,31 @@
 "use strict";
 
 var fs = require("fs");
-var path = require("path");
-var cp = require("child_process");
+var join = require("path").join;
 var crypto = require("crypto");
 var assert = require("chai").assert;
+var geth = require("geth");
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 
+// geth.debug = true;
+
 var NUM_TESTS = 1000;
 var TIMEOUT = 5000;
-var DEBUG = false;
+var DATADIR = join(__dirname, "fixtures");
 
-var GETH_BIN = "geth";
-var GETH_PORT = "30304";
-var GETH_RPCPORT = "8547";
-var DATADIR = path.join(__dirname, "fixtures");
-var NETWORK_ID = "10101";
-
-var PASSFILE = path.join(DATADIR, ".password");
-var GETH_FLAGS = [
-    "--etherbase", null,
-    "--unlock", null,
-    "--nodiscover",
-    "--networkid", NETWORK_ID,
-    "--port", GETH_PORT,
-    "--rpcport", GETH_RPCPORT,
-    "--datadir", DATADIR,
-    "--password", PASSFILE
-];
+var options = {
+    persist: false,
+    flags: {
+        networkid: "10101",
+        port: 30304,
+        rpcport: 8547,
+        nodiscover: null,
+        datadir: DATADIR,
+        ipcpath: join(DATADIR, "geth.ipc"),
+        password: join(DATADIR, ".password")
+    }
+};
 
 function createEthereumKey(passphrase) {
     var dk = keythereum.create();
@@ -57,71 +54,48 @@ describe("Unlock randomly-generated accounts in geth", function () {
             assert.isNotNull(json);
 
             var keyObject = JSON.parse(json);
-            assert.isNotNull(keyObject);
+            assert.isObject(keyObject);
             checkKeyObj.structure(keythereum, keyObject);
 
-            keythereum.exportToFile(keyObject, path.join(DATADIR, "keystore"), function (keypath) {
-
-                fs.writeFile(PASSFILE, t.password, function (ex) {
-                    var failed = false;
-                    if (ex) {
-                        done(ex);
-                    } else {
-                        GETH_FLAGS[1] = keyObject.address;
-                        GETH_FLAGS[3] = keyObject.address;
-
-                        var geth = cp.spawn(GETH_BIN, GETH_FLAGS);
-                        assert.isNotNull(geth);
-
-                        geth.stdout.on("data", function (data) {
-                            var unlocked = "Account '" + keyObject.address + "' unlocked.";
-                            if (DEBUG) {
-                                process.stdout.write(data.toString());
+            keythereum.exportToFile(keyObject, join(DATADIR, "keystore"), function (keypath) {
+                fs.writeFile(options.flags.password, t.password, function (ex) {
+                    var fail;
+                    if (ex) return done(ex);
+                    options.flags.unlock = keyObject.address;
+                    options.flags.etherbase = keyObject.address;
+                    geth.start(options, {
+                        stderr: function (data) {
+                            if (geth.debug) process.stdout.write(data);
+                            if (data.toString().indexOf("16MB") > -1) {
+                                geth.trigger(null, geth.proc);
                             }
-                            if (data.toString().indexOf(unlocked) > -1) {
-                                if (geth) geth.kill();
-                            }
-                        });
-
-                        geth.stderr.on("data", function (data) {
-                            if (DEBUG) {
-                                process.stdout.write(data.toString());
-                            }
-                        });
-
-                        geth.on("close", function () {
-                            if (geth) geth.kill();
-
-                            fs.unlink(PASSFILE, function (exc) {
-                                if (exc) {
-                                    done(exc);
-                                } else {
-
-                                    fs.unlink(keypath, function (exc) {
-                                        if (exc) {
-                                            done(exc);
-                                        } else {
-                                            if (failed) {
-                                                done(new Error(
-                                                    "account not unlocked after "+
-                                                    TIMEOUT / 1000 + " seconds"
-                                                ));
-                                            } else {
-                                                done();
-                                            }
-                                        }
-                                    });
-                                }
+                        },
+                        close: function () {
+                            fs.unlink(options.flags.password, function (exc) {
+                                if (exc) return done(exc);
+                                fs.unlink(keypath, function (exc) {
+                                    if (exc) return done(exc);
+                                    done(fail);
+                                });
                             });
+                        }
+                    }, function (err, spawned) {
+                        if (err) return done(err);
+                        if (!spawned) return done(new Error("where's the geth?"));
+                        geth.stdout("data", function (data) {
+                            var unlocked = "Account '" + keyObject.address+
+                                "' (" + keyObject.address + ") unlocked.";
+                            if (data.toString().indexOf(unlocked) > -1) {
+                                geth.stop();
+                            }
                         });
-
-                        // if not unlocked after 10 seconds, kill geth
-                        setTimeout(function () {
-                            failed = true;
-                            if (geth) geth.kill();
-                        }, TIMEOUT);
-
-                    }
+                        geth.stderr("data", function (data) {
+                            if (data.toString().indexOf("Fatal") > -1) {
+                                fail = new Error(data);
+                                geth.stop();
+                            }
+                        });
+                    });
                 });
             });
         });
@@ -158,7 +132,6 @@ describe("Unlock randomly-generated accounts in geth", function () {
             hashRounds: hashRounds,
             kdf: "scrypt"
         });
-
     }
 
 });

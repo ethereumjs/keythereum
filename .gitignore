@@ -11,3 +11,4 @@ test/fixtures/dapp
 test/fixtures/blockchain
 test/fixtures/extra
 test/fixtures/state
+test/fixtures/nodes
