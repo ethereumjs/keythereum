@@ -44,7 +44,13 @@ function hex2utf16le(input) {
     return JSON.parse('"' + output + '"');
 }
 
+function isFunction(f) {
+    return Object.prototype.toString.call(f) === "[object Function]";
+}
+
 module.exports = {
+
+    browser: !NODE_JS,
 
     constants: {
 
@@ -184,7 +190,7 @@ module.exports = {
 
                 try {
 
-                    if (cb && cb.constructor === Function) {
+                    if (isFunction(cb)) {
 
                         setTimeout(function () {
                             cb(new Buffer(
@@ -215,7 +221,7 @@ module.exports = {
                     }
 
                 } catch (ex) {
-                    if (cb && cb.constructor === Function) {
+                    if (isFunction(cb)) {
                         cb(ex);
                     } else {
                         return ex;
@@ -228,7 +234,7 @@ module.exports = {
                 var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
                 if (prf === "hmac-sha256") prf = "sha256";
 
-                if (cb && cb.constructor === Function) {
+                if (isFunction(cb)) {
 
                     crypto.pbkdf2(
                         password,
@@ -276,7 +282,7 @@ module.exports = {
         var ivBytes = params.ivBytes || this.constants.ivBytes;
 
         // asynchronous key generation if callback is provided
-        if (cb && cb.constructor === Function) {
+        if (isFunction(cb)) {
 
             // generate private key
             crypto.randomBytes(keyBytes, function (ex, privateKey) {
@@ -405,7 +411,7 @@ module.exports = {
         if (privateKey.constructor === String) privateKey = str2buf(privateKey);
 
         // asynchronous if callback provided
-        if (cb && cb.constructor === Function) {
+        if (isFunction(cb)) {
 
             this.deriveKey(
                 password,
@@ -486,7 +492,7 @@ module.exports = {
         }
 
         // derive secret key from password
-        if (cb && cb.constructor === Function) {
+        if (isFunction(cb)) {
             this.deriveKey(password, salt, keyObject.Crypto, function (derivedKey) {
                 cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
             });
@@ -502,53 +508,44 @@ module.exports = {
 
     /**
      * Export formatted JSON to keystore file.
-     * (Note: Node.js only!)
      * @param {Object} keyObject Keystore object.
      * @param {string=} keystore Path to keystore folder (default: "keystore").
      * @param {function=} cb Callback function (optional).
-     * @return {string} JSON filename.
+     * @return {string} JSON filename (Node.js) or JSON string (browser).
      */
     exportToFile: function (keyObject, keystore, cb) {
-        keystore = keystore || "keystore";
+        var self = this;
+        var outfile, outpath, json;
 
-        var instructions = function (outpath) {
-            if (!this.constants.quiet) {
+        function instructions(outpath) {
+            if (!self.constants.quiet) {
                 console.log(
                     "Saved to file:\n" + outpath + "\n"+
                     "To use with geth, copy this file to your Ethereum "+
                     "keystore folder (usually ~/.ethereum/keystore)."
                 );
             }
-        }.bind(this);
-
-        var outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
-        var outpath = path.join(keystore, outfile);
-        var json = JSON.stringify(keyObject);
-
-        if (NODE_JS) {
-
-            if (cb && cb.constructor === Function) {
-                
-                fs.writeFile(outpath, json, function (ex) {
-                    if (ex) throw ex;
-                    instructions(outpath);
-                    cb(outpath);
-                });
-
-            } else {
-
-                fs.writeFileSync(outpath, json);
-                instructions(outpath);
-                return outpath;
-            }
-
-        } else {
-            if (cb && cb.constructor === Function) {
-                cb(outfile);
-            } else {
-                return outfile;
-            }
         }
+
+        keystore = keystore || "keystore";
+        outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
+        outpath = path.join(keystore, outfile);
+        json = JSON.stringify(keyObject);
+
+        if (this.browser) {
+            if (!isFunction(cb)) return json;
+            return cb(json);
+        }
+        if (!isFunction(cb)) {
+            fs.writeFileSync(outpath, json);
+            instructions(outpath);
+            return outpath;
+        }
+        return fs.writeFile(outpath, json, function (ex) {
+            if (ex) throw ex;
+            instructions(outpath);
+            cb(outpath);
+        });
     },
 
     /**
@@ -576,39 +573,29 @@ module.exports = {
             return filepath;
         }
 
-        if (NODE_JS) {
-
-            datadir = datadir || path.join(process.env.HOME, ".ethereum");
-            var keystore = path.join(datadir, "keystore");
-
-            if (cb && cb.constructor === Function) {
-                fs.readdir(keystore, function (ex, files) {
-                    if (ex) throw ex;
-                    var filepath = findKeyfile(keystore, address, files);
-                    if (filepath) {
-                        cb(JSON.parse(fs.readFileSync(filepath)));
-                    } else {
-                        throw new Error(
-                            "could not find key file for address " + address
-                        );
-                    }
-                });
-
-            } else {
-
-                var filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
-                if (filepath) {
-                    return JSON.parse(fs.readFileSync(filepath));
-                } else {
-                    throw new Error(
-                        "could not find key file for address " + address
-                    );
-                }
-            }
-
-        } else {
+        if (this.browser) {
             throw new Error("method only available in Node.js");
         }
+        datadir = datadir || path.join(process.env.HOME, ".ethereum");
+        var keystore = path.join(datadir, "keystore");
+        if (!isFunction(cb)) {
+            var filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
+            if (filepath) {
+                return JSON.parse(fs.readFileSync(filepath));
+            } else {
+                throw new Error(
+                    "could not find key file for address " + address
+                );
+            }
+        }
+        fs.readdir(keystore, function (ex, files) {
+            if (ex) return cb(ex);
+            var filepath = findKeyfile(keystore, address, files);
+            if (filepath) return cb(JSON.parse(fs.readFileSync(filepath)));
+            return new Error(
+                "could not find key file for address " + address
+            );
+        });
     }
 
 };

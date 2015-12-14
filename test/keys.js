@@ -513,7 +513,7 @@ describe("Dump private key", function () {
 
 describe("Export to file", function () {
 
-    var json = {
+    var keyObj = {
         address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
         Crypto: {
             cipher: "aes-128-ctr",
@@ -538,36 +538,46 @@ describe("Export to file", function () {
         this.timeout(TIMEOUT);
 
         // synchronous
-        var keypath = keythereum.exportToFile(json);
+        var keypath = keythereum.exportToFile(keyObj);
         var outfile = keypath.split('/');
         assert.isArray(outfile);
 
         outfile = outfile[outfile.length - 1];
         assert.strictEqual(outfile.slice(0, 5), "UTC--");
-        assert.isAbove(outfile.indexOf(json.address), -1);
+        assert.isAbove(outfile.indexOf(keyObj.address), -1);
 
         fs.unlinkSync(keypath);
 
         // asynchronous
-        keythereum.exportToFile(json, null, function (keyPath) {
-
+        keythereum.exportToFile(keyObj, null, function (keyPath) {
             var outFile = keyPath.split('/');
             assert.isArray(outFile);
 
             outFile = outFile[outFile.length - 1];
             assert.strictEqual(outFile.slice(0, 5), "UTC--");
-            assert.isAbove(outFile.indexOf(json.address), -1);
+            assert.isAbove(outFile.indexOf(keyObj.address), -1);
 
             fs.unlink(keyPath, function (exc) {
-                if (exc) {
-                    done(exc);
-                } else {
-                    done();
-                }
+                if (exc) return done(exc);
+                done();
             });
-
         });
+    });
 
+    it("export key to json (browser)", function (done) {
+        this.timeout(TIMEOUT);
+        keythereum.browser = true;
+
+        // synchronous
+        var json = keythereum.exportToFile(keyObj);
+        assert.strictEqual(json, JSON.stringify(keyObj));
+
+        // asynchronous
+        keythereum.exportToFile(keyObj, null, function (json) {
+            assert.strictEqual(json, JSON.stringify(keyObj));
+            keythereum.browser = false;
+            done();
+        });
     });
 
 });
