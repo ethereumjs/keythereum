@@ -450,6 +450,7 @@ module.exports = {
      * @return {buffer} Plaintext private key.
      */
     recover: function (password, keyObject, cb) {
+        var self = this;
 
         function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
 
@@ -468,7 +469,6 @@ module.exports = {
             }
         }
 
-        var self = this;
         var iv = keyObject.Crypto.cipherparams.iv;
         var salt = keyObject.Crypto.kdfparams.salt;
         var ciphertext = keyObject.Crypto.ciphertext;
@@ -569,7 +569,8 @@ module.exports = {
      */
     importFromFile: function (address, datadir, cb) {
         address = address.replace('0x', '');
-        function findKeyfile(address, files) {
+
+        function findKeyfile(keystore, address, files) {
             var filepath = null;
             for (var i = 0, len = files.length; i < len; ++i) {
                 if (files[i].indexOf(address) > -1) {
@@ -591,7 +592,7 @@ module.exports = {
             if (cb && cb.constructor === Function) {
                 fs.readdir(keystore, function (ex, files) {
                     if (ex) throw ex;
-                    var filepath = findKeyfile(address, files);
+                    var filepath = findKeyfile(keystore, address, files);
                     if (filepath) {
                         cb(JSON.parse(fs.readFileSync(filepath)));
                     } else {
@@ -603,7 +604,7 @@ module.exports = {
 
             } else {
 
-                var filepath = findKeyfile(address, fs.readdirSync(keystore));
+                var filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
                 if (filepath) {
                     return JSON.parse(fs.readFileSync(filepath));
                 } else {
