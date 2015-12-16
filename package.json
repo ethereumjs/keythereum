@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AugurProject/keythereum.git"
+    "url": "git+https://github.com/ethereumjs/keythereum.git"
   },
   "author": "Jack Peterson <jack@tinybike.net>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/AugurProject/keythereum/issues"
+    "url": "https://github.com/ethereumjs/keythereum/issues"
   },
-  "homepage": "https://github.com/AugurProject/keythereum#readme",
+  "homepage": "https://github.com/ethereumjs/keythereum#readme",
   "dependencies": {
     "crypto-browserify": "^3.9.14",
     "elliptic": "^5.1.0",
