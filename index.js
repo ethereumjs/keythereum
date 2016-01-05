@@ -9,7 +9,8 @@ var NODE_JS = (typeof module !== "undefined") && process && !process.browser;
 
 var path = (NODE_JS) ? require("path") : null;
 var fs = (NODE_JS) ? require("fs") : null;
-var crypto = (NODE_JS) ? require("crypto") : require("crypto-browserify");
+// var crypto = (NODE_JS) ? require("crypto") : require("crypto-browserify");
+var crypto = require("crypto");
 var uuid = require("node-uuid");
 var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
