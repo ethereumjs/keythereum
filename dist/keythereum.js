@@ -458,6 +458,7 @@ module.exports = {
      */
     recover: function (password, keyObject, cb) {
         var self = this;
+        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
         function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
 
@@ -476,7 +477,6 @@ module.exports = {
             }
         }
 
-        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
         var iv = keyObjectCrypto.cipherparams.iv;
         var salt = keyObjectCrypto.kdfparams.salt;
         var ciphertext = keyObjectCrypto.ciphertext;
