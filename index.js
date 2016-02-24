@@ -359,7 +359,7 @@ module.exports = {
 
         keyObject = {
             address: this.privateKeyToAddress(privateKey).slice(2),
-            Crypto: {
+            crypto: {
                 cipher: options.cipher || this.constants.cipher,
                 ciphertext: ciphertext,
                 cipherparams: { iv: iv.toString("hex") },
@@ -370,8 +370,8 @@ module.exports = {
         };
 
         if (options.kdf === "scrypt") {
-            keyObject.Crypto.kdf = "scrypt";
-            keyObject.Crypto.kdfparams = {
+            keyObject.crypto.kdf = "scrypt";
+            keyObject.crypto.kdfparams = {
                 dklen: options.kdfparams.dklen || this.constants.scrypt.dklen,
                 n: options.kdfparams.n || this.constants.scrypt.n,
                 r: options.kdfparams.r || this.constants.scrypt.r,
@@ -380,8 +380,8 @@ module.exports = {
             };
 
         } else {
-            keyObject.Crypto.kdf = "pbkdf2";
-            keyObject.Crypto.kdfparams = {
+            keyObject.crypto.kdf = "pbkdf2";
+            keyObject.crypto.kdfparams = {
                 c: options.kdfparams.c || this.constants.pbkdf2.c,
                 dklen: options.kdfparams.dklen || this.constants.pbkdf2.dklen,
                 prf: options.kdfparams.prf || this.constants.pbkdf2.prf,
@@ -454,7 +454,7 @@ module.exports = {
 
             // verify that message authentication codes match
             var mac = self.getMAC(derivedKey, ciphertext);
-            if (mac === keyObject.Crypto.mac) {
+            if (mac === keyObjectCrypto.mac) {
 
                 return new Buffer(self.decrypt(
                     ciphertext,
@@ -467,38 +467,39 @@ module.exports = {
             }
         }
 
-        var iv = keyObject.Crypto.cipherparams.iv;
-        var salt = keyObject.Crypto.kdfparams.salt;
-        var ciphertext = keyObject.Crypto.ciphertext;
+        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
+        var iv = keyObjectCrypto.cipherparams.iv;
+        var salt = keyObjectCrypto.kdfparams.salt;
+        var ciphertext = keyObjectCrypto.ciphertext;
 
         if (iv && iv.constructor === String) iv = str2buf(iv);
         if (salt && salt.constructor === String) salt = str2buf(salt);
         if (ciphertext && ciphertext.constructor === String)
             ciphertext = str2buf(ciphertext);
 
-        if (keyObject.Crypto.kdf === "scrypt") {
+        if (keyObjectCrypto.kdf === "scrypt") {
             this.constants.scrypt = {
-                n: keyObject.Crypto.kdfparams.n,
-                r: keyObject.Crypto.kdfparams.r,
-                p: keyObject.Crypto.kdfparams.p,
-                dklen: keyObject.Crypto.kdfparams.dklen
+                n: keyObjectCrypto.kdfparams.n,
+                r: keyObjectCrypto.kdfparams.r,
+                p: keyObjectCrypto.kdfparams.p,
+                dklen: keyObjectCrypto.kdfparams.dklen
             };
         } else {
-            if (keyObject.Crypto.kdfparams.prf !== "hmac-sha256") {
+            if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
                 throw new Error("PBKDF2 only supported with HMAC-SHA256");
             }
-            this.constants.pbkdf2.c = keyObject.Crypto.kdfparams.c;
-            this.constants.pbkdf2.dklen = keyObject.Crypto.kdfparams.dklen;
+            this.constants.pbkdf2.c = keyObjectCrypto.kdfparams.c;
+            this.constants.pbkdf2.dklen = keyObjectCrypto.kdfparams.dklen;
         }
 
         // derive secret key from password
         if (isFunction(cb)) {
-            this.deriveKey(password, salt, keyObject.Crypto, function (derivedKey) {
+            this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
                 cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
             });
         } else {
             return verifyAndDecrypt(
-                this.deriveKey(password, salt, keyObject.Crypto),
+                this.deriveKey(password, salt, keyObjectCrypto),
                 salt,
                 iv,
                 ciphertext

@@ -6,44 +6,45 @@ var validator = require("validator");
 module.exports = {
 
     structure: function (keythereum, keyObject) {
+        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
         assert.instanceOf(keyObject, Object);
         assert.property(keyObject, "address");
-        assert.property(keyObject, "Crypto");
-        assert.instanceOf(keyObject.Crypto, Object);
-        assert.property(keyObject.Crypto, "cipher");
+        assert(keyObject.Crypto || keyObject.crypto);
+        assert.instanceOf(keyObjectCrypto, Object);
+        assert.property(keyObjectCrypto, "cipher");
         assert(
-            keyObject.Crypto.cipher === "aes-128-ctr" ||
-            keyObject.Crypto.cipher === "aes-128-cbc"
+            keyObjectCrypto.cipher === "aes-128-ctr" ||
+            keyObjectCrypto.cipher === "aes-128-cbc"
         );
-        assert.property(keyObject.Crypto, "cipherparams");
-        assert.instanceOf(keyObject.Crypto.cipherparams, Object);
-        assert.property(keyObject.Crypto.cipherparams, "iv");
-        assert.strictEqual(keyObject.Crypto.cipherparams.iv.length, 32);
-        assert.property(keyObject.Crypto, "ciphertext");
-        assert(keyObject.Crypto.ciphertext.length >= 64);
-        assert.isTrue(validator.isHexadecimal(keyObject.Crypto.ciphertext));
-        assert.property(keyObject.Crypto, "kdf");
-        assert(keyObject.Crypto.kdf === "pbkdf2" || keyObject.Crypto.kdf === "scrypt");
-        assert.property(keyObject.Crypto, "kdfparams");
-        assert.instanceOf(keyObject.Crypto.kdfparams, Object);
-        if (keyObject.Crypto.kdf === "pbkdf2") {
-            assert.property(keyObject.Crypto.kdfparams, "c");
-            assert.property(keyObject.Crypto.kdfparams, "prf");
-            assert.strictEqual(keyObject.Crypto.kdfparams.prf, "hmac-sha256");
+        assert.property(keyObjectCrypto, "cipherparams");
+        assert.instanceOf(keyObjectCrypto.cipherparams, Object);
+        assert.property(keyObjectCrypto.cipherparams, "iv");
+        assert.strictEqual(keyObjectCrypto.cipherparams.iv.length, 32);
+        assert.property(keyObjectCrypto, "ciphertext");
+        assert(keyObjectCrypto.ciphertext.length >= 64);
+        assert.isTrue(validator.isHexadecimal(keyObjectCrypto.ciphertext));
+        assert.property(keyObjectCrypto, "kdf");
+        assert(keyObjectCrypto.kdf === "pbkdf2" || keyObjectCrypto.kdf === "scrypt");
+        assert.property(keyObjectCrypto, "kdfparams");
+        assert.instanceOf(keyObjectCrypto.kdfparams, Object);
+        if (keyObjectCrypto.kdf === "pbkdf2") {
+            assert.property(keyObjectCrypto.kdfparams, "c");
+            assert.property(keyObjectCrypto.kdfparams, "prf");
+            assert.strictEqual(keyObjectCrypto.kdfparams.prf, "hmac-sha256");
         } else {
-            assert.property(keyObject.Crypto.kdfparams, "n");
-            assert.property(keyObject.Crypto.kdfparams, "r");
-            assert.property(keyObject.Crypto.kdfparams, "p");
+            assert.property(keyObjectCrypto.kdfparams, "n");
+            assert.property(keyObjectCrypto.kdfparams, "r");
+            assert.property(keyObjectCrypto.kdfparams, "p");
         }
-        assert.property(keyObject.Crypto.kdfparams, "dklen");
-        assert.isNumber(keyObject.Crypto.kdfparams.dklen);
-        assert(keyObject.Crypto.kdfparams.dklen >= 32);
-        assert.property(keyObject.Crypto.kdfparams, "salt");
-        assert(keyObject.Crypto.kdfparams.salt.length >= 32);
-        assert.isTrue(validator.isHexadecimal(keyObject.Crypto.kdfparams.salt));
-        assert.property(keyObject.Crypto, "mac");
-        assert.strictEqual(keyObject.Crypto.mac.length, 64);
-        assert.isTrue(validator.isHexadecimal(keyObject.Crypto.mac));
+        assert.property(keyObjectCrypto.kdfparams, "dklen");
+        assert.isNumber(keyObjectCrypto.kdfparams.dklen);
+        assert(keyObjectCrypto.kdfparams.dklen >= 32);
+        assert.property(keyObjectCrypto.kdfparams, "salt");
+        assert(keyObjectCrypto.kdfparams.salt.length >= 32);
+        assert.isTrue(validator.isHexadecimal(keyObjectCrypto.kdfparams.salt));
+        assert.property(keyObjectCrypto, "mac");
+        assert.strictEqual(keyObjectCrypto.mac.length, 64);
+        assert.isTrue(validator.isHexadecimal(keyObjectCrypto.mac));
         assert.property(keyObject, "id");
         assert.strictEqual(keyObject.id.length, 36);
         assert.isTrue(validator.isUUID(keyObject.id));
@@ -52,89 +53,90 @@ module.exports = {
     },
 
     values: function (keythereum, t, keyObject) {
+        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
         assert.strictEqual(keyObject.address, t.expected.address);
         assert.strictEqual(
-            keyObject.Crypto.cipher,
-            t.expected.Crypto.cipher
+            keyObjectCrypto.cipher,
+            t.expected.crypto.cipher
         );
         if (t.input.iv) {
             assert.strictEqual(
-                keyObject.Crypto.cipherparams.iv,
+                keyObjectCrypto.cipherparams.iv,
                 t.input.iv.toString("hex")
             );
         }
         assert.strictEqual(
-            keyObject.Crypto.cipherparams.iv,
-            t.expected.Crypto.cipherparams.iv
+            keyObjectCrypto.cipherparams.iv,
+            t.expected.crypto.cipherparams.iv
         );
         assert.strictEqual(
-            keyObject.Crypto.ciphertext,
-            t.expected.Crypto.ciphertext
+            keyObjectCrypto.ciphertext,
+            t.expected.crypto.ciphertext
         );
         assert.strictEqual(
-            keyObject.Crypto.kdf,
-            t.expected.Crypto.kdf
+            keyObjectCrypto.kdf,
+            t.expected.crypto.kdf
         );
         if (t.input.kdf) {
             if (t.input.kdf === "scrypt") {
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.n,
-                    t.expected.Crypto.kdfparams.n
+                    keyObjectCrypto.kdfparams.n,
+                    t.expected.crypto.kdfparams.n
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.n,
+                    keyObjectCrypto.kdfparams.n,
                     keythereum.constants.scrypt.n
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.r,
-                    t.expected.Crypto.kdfparams.r
+                    keyObjectCrypto.kdfparams.r,
+                    t.expected.crypto.kdfparams.r
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.r,
+                    keyObjectCrypto.kdfparams.r,
                     keythereum.constants.scrypt.r
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.p,
-                    t.expected.Crypto.kdfparams.p
+                    keyObjectCrypto.kdfparams.p,
+                    t.expected.crypto.kdfparams.p
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.p,
+                    keyObjectCrypto.kdfparams.p,
                     keythereum.constants.scrypt.p
                 );
             } else {
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.c,
-                    t.expected.Crypto.kdfparams.c
+                    keyObjectCrypto.kdfparams.c,
+                    t.expected.crypto.kdfparams.c
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.c,
+                    keyObjectCrypto.kdfparams.c,
                     keythereum.constants.pbkdf2.c
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.prf,
-                    t.expected.Crypto.kdfparams.prf
+                    keyObjectCrypto.kdfparams.prf,
+                    t.expected.crypto.kdfparams.prf
                 );
                 assert.strictEqual(
-                    keyObject.Crypto.kdfparams.prf,
+                    keyObjectCrypto.kdfparams.prf,
                     keythereum.constants.pbkdf2.prf
                 );
             }
             assert.strictEqual(
-                keyObject.Crypto.kdfparams.dklen,
-                t.expected.Crypto.kdfparams.dklen
+                keyObjectCrypto.kdfparams.dklen,
+                t.expected.crypto.kdfparams.dklen
             );
             assert.strictEqual(
-                keyObject.Crypto.kdfparams.dklen,
+                keyObjectCrypto.kdfparams.dklen,
                 keythereum.constants.pbkdf2.dklen
             );
             assert.strictEqual(
-                keyObject.Crypto.kdfparams.salt,
-                t.expected.Crypto.kdfparams.salt
+                keyObjectCrypto.kdfparams.salt,
+                t.expected.crypto.kdfparams.salt
             );
         }
         assert.strictEqual(
-            keyObject.Crypto.mac,
-            t.expected.Crypto.mac
+            keyObjectCrypto.mac,
+            t.expected.crypto.mac
         );
         assert.strictEqual(
             keyObject.version,

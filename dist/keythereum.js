@@ -18,14 +18,13 @@ var NODE_JS = (typeof module !== "undefined") && process && !process.browser;
 
 var path = (NODE_JS) ? require("path") : null;
 var fs = (NODE_JS) ? require("fs") : null;
-// var crypto = (NODE_JS) ? require("crypto") : require("crypto-browserify");
 var crypto = require("crypto");
 var uuid = require("node-uuid");
 var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
-var scrypt = require("./lib/scrypt")(67108864);
+var scrypt = require("./lib/scrypt")(280000000);
 
 // convert string to buffer
 function str2buf(str, enc) {
@@ -369,7 +368,7 @@ module.exports = {
 
         keyObject = {
             address: this.privateKeyToAddress(privateKey).slice(2),
-            Crypto: {
+            crypto: {
                 cipher: options.cipher || this.constants.cipher,
                 ciphertext: ciphertext,
                 cipherparams: { iv: iv.toString("hex") },
@@ -380,8 +379,8 @@ module.exports = {
         };
 
         if (options.kdf === "scrypt") {
-            keyObject.Crypto.kdf = "scrypt";
-            keyObject.Crypto.kdfparams = {
+            keyObject.crypto.kdf = "scrypt";
+            keyObject.crypto.kdfparams = {
                 dklen: options.kdfparams.dklen || this.constants.scrypt.dklen,
                 n: options.kdfparams.n || this.constants.scrypt.n,
                 r: options.kdfparams.r || this.constants.scrypt.r,
@@ -390,8 +389,8 @@ module.exports = {
             };
 
         } else {
-            keyObject.Crypto.kdf = "pbkdf2";
-            keyObject.Crypto.kdfparams = {
+            keyObject.crypto.kdf = "pbkdf2";
+            keyObject.crypto.kdfparams = {
                 c: options.kdfparams.c || this.constants.pbkdf2.c,
                 dklen: options.kdfparams.dklen || this.constants.pbkdf2.dklen,
                 prf: options.kdfparams.prf || this.constants.pbkdf2.prf,
@@ -464,7 +463,7 @@ module.exports = {
 
             // verify that message authentication codes match
             var mac = self.getMAC(derivedKey, ciphertext);
-            if (mac === keyObject.Crypto.mac) {
+            if (mac === keyObjectCrypto.mac) {
 
                 return new Buffer(self.decrypt(
                     ciphertext,
@@ -477,38 +476,39 @@ module.exports = {
             }
         }
 
-        var iv = keyObject.Crypto.cipherparams.iv;
-        var salt = keyObject.Crypto.kdfparams.salt;
-        var ciphertext = keyObject.Crypto.ciphertext;
+        var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
+        var iv = keyObjectCrypto.cipherparams.iv;
+        var salt = keyObjectCrypto.kdfparams.salt;
+        var ciphertext = keyObjectCrypto.ciphertext;
 
         if (iv && iv.constructor === String) iv = str2buf(iv);
         if (salt && salt.constructor === String) salt = str2buf(salt);
         if (ciphertext && ciphertext.constructor === String)
             ciphertext = str2buf(ciphertext);
 
-        if (keyObject.Crypto.kdf === "scrypt") {
+        if (keyObjectCrypto.kdf === "scrypt") {
             this.constants.scrypt = {
-                n: keyObject.Crypto.kdfparams.n,
-                r: keyObject.Crypto.kdfparams.r,
-                p: keyObject.Crypto.kdfparams.p,
-                dklen: keyObject.Crypto.kdfparams.dklen
+                n: keyObjectCrypto.kdfparams.n,
+                r: keyObjectCrypto.kdfparams.r,
+                p: keyObjectCrypto.kdfparams.p,
+                dklen: keyObjectCrypto.kdfparams.dklen
             };
         } else {
-            if (keyObject.Crypto.kdfparams.prf !== "hmac-sha256") {
+            if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
                 throw new Error("PBKDF2 only supported with HMAC-SHA256");
             }
-            this.constants.pbkdf2.c = keyObject.Crypto.kdfparams.c;
-            this.constants.pbkdf2.dklen = keyObject.Crypto.kdfparams.dklen;
+            this.constants.pbkdf2.c = keyObjectCrypto.kdfparams.c;
+            this.constants.pbkdf2.dklen = keyObjectCrypto.kdfparams.dklen;
         }
 
         // derive secret key from password
         if (isFunction(cb)) {
-            this.deriveKey(password, salt, keyObject.Crypto, function (derivedKey) {
+            this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
                 cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
             });
         } else {
             return verifyAndDecrypt(
-                this.deriveKey(password, salt, keyObject.Crypto),
+                this.deriveKey(password, salt, keyObjectCrypto),
                 salt,
                 iv,
                 ciphertext
@@ -611,7 +611,7 @@ module.exports = {
 };
 
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"./lib/keccak":3,"./lib/scrypt":4,"_process":209,"buffer":8,"crypto":12,"elliptic":227,"ethereumjs-util":253,"fs":5,"node-uuid":258,"path":208,"validator":259}],3:[function(require,module,exports){
+},{"./lib/keccak":3,"./lib/scrypt":4,"_process":209,"buffer":8,"crypto":12,"elliptic":227,"ethereumjs-util":253,"fs":5,"node-uuid":258,"path":208,"validator":260}],3:[function(require,module,exports){
 /* keccak.js
  * A Javascript implementation of the Keccak SHA-3 candidate from Bertoni,
  * Daemen, Peeters and van Assche. This version is not optimized with any of 
@@ -15156,6 +15156,7 @@ Decipher.prototype._final = function () {
 }
 Decipher.prototype.setAutoPadding = function (setTo) {
   this._autopadding = !!setTo
+  return this
 }
 function Splitter () {
   if (!(this instanceof Splitter)) {
@@ -15297,6 +15298,7 @@ Cipher.prototype._final = function () {
 }
 Cipher.prototype.setAutoPadding = function (setTo) {
   this._autopadding = !!setTo
+  return this
 }
 
 function Splitter () {
@@ -17052,6 +17054,12 @@ exports['1.3.132.0.35'] = 'p521'
   BN.BN = BN;
   BN.wordSize = 26;
 
+  var Buffer;
+  try {
+    Buffer = require('buf' + 'fer').Buffer;
+  } catch (e) {
+  }
+
   BN.max = function max (left, right) {
     if (left.cmp(right) > 0) return left;
     return right;
@@ -17477,22 +17485,43 @@ exports['1.3.132.0.35'] = 'p521'
   };
 
   BN.prototype.toNumber = function toNumber () {
-    assert(this.bitLength() <= 53, 'Number can only safely store up to 53 bits');
-    return parseInt(this.toString(), 10);
+    var length = this.bitLength();
+    var ret;
+    if (length <= 26) {
+      ret = this.words[0];
+    } else if (length <= 52) {
+      ret = (this.words[1] * 0x4000000) + this.words[0];
+    } else if (length === 53) {
+      // NOTE: at this stage it is known that the top bit is set
+      ret = 0x10000000000000 + (this.words[1] * 0x4000000) + this.words[0];
+    } else {
+      assert(false, 'Number can only safely store up to 53 bits');
+    }
+    return (this.negative !== 0) ? -ret : ret;
   };
 
   BN.prototype.toJSON = function toJSON () {
     return this.toString(16);
   };
 
+  BN.prototype.toBuffer = function toBuffer (endian, length) {
+    assert(typeof Buffer !== 'undefined');
+    return this.toArrayLike(Buffer, endian, length);
+  };
+
   BN.prototype.toArray = function toArray (endian, length) {
+    return this.toArrayLike(Array, endian, length);
+  };
+
+  BN.prototype.toArrayLike = function toArrayLike (ArrayType, endian, length) {
     var byteLength = this.byteLength();
-    var reqLength = length || byteLength;
+    var reqLength = length || Math.max(1, byteLength);
     assert(byteLength <= reqLength, 'byte array longer than desired length');
+    assert(reqLength > 0, 'Requested array length <= 0');
 
     this.strip();
     var littleEndian = endian === 'le';
-    var res = new Array(reqLength);
+    var res = new ArrayType(reqLength);
 
     var b, i;
     var q = this.clone();
@@ -17617,21 +17646,34 @@ exports['1.3.132.0.35'] = 'p521'
     return Math.ceil(this.bitLength() / 8);
   };
 
+  BN.prototype.toTwos = function toTwos (width) {
+    if (this.negative !== 0) {
+      return this.abs().inotn(width).iaddn(1);
+    }
+    return this.clone();
+  };
+
+  BN.prototype.fromTwos = function fromTwos (width) {
+    if (this.testn(width - 1)) {
+      return this.notn(width).iaddn(1).ineg();
+    }
+    return this.clone();
+  };
+
   BN.prototype.isNeg = function isNeg () {
     return this.negative !== 0;
   };
 
   // Return negative clone of `this`
   BN.prototype.neg = function neg () {
-    if (this.isZero()) return this.clone();
-
-    var r = this.clone();
-    r.negative = this.negative ^ 1;
-    return r;
+    return this.clone().ineg();
   };
 
   BN.prototype.ineg = function ineg () {
-    this.negative ^= 1;
+    if (!this.isZero()) {
+      this.negative ^= 1;
+    }
+
     return this;
   };
 
@@ -17943,69 +17985,6 @@ exports['1.3.132.0.35'] = 'p521'
     return this.clone().isub(num);
   };
 
-  /*
-  // NOTE: This could be potentionally used to generate loop-less multiplications
-  function _genCombMulTo(alen, blen) {
-    var len = alen + blen - 1;
-    var src = [
-      'var a = self.words;',
-      'var b = num.words;',
-      'var o = out.words;',
-      'var c = 0;',
-      'var lo;',
-      'var mid;',
-      'var hi;'
-    ];
-    for (var i = 0; i < alen; i++) {
-      src.push('var a' + i + ' = a[' + i + '] | 0;');
-      src.push('var al' + i + ' = a' + i + ' & 0x1fff;');
-      src.push('var ah' + i + ' = a' + i + ' >>> 13;');
-    }
-    for (var i = 0; i < blen; i++) {
-      src.push('var b' + i + ' = b[' + i + '] | 0;');
-      src.push('var bl' + i + ' = b' + i + ' & 0x1fff;');
-      src.push('var bh' + i + ' = b' + i + ' >>> 13;');
-    }
-    src.push('');
-    src.push('out.length = ' + len + ';');
-
-    for (var k = 0; k < len; k++) {
-      var minJ = Math.max(0, k - alen + 1);
-      var maxJ = Math.min(k, blen - 1);
-
-      src.push('\/* k = ' + k + ' *\/');
-      src.push('var w' + k + ' = c;');
-      src.push('c = 0;');
-      for (var j = minJ; j <= maxJ; j++) {
-        var i = k - j;
-
-        src.push('lo = Math.imul(al' + i + ', bl' + j + ');');
-        src.push('mid = Math.imul(al' + i + ', bh' + j + ');');
-        src.push('mid = (mid + Math.imul(ah' + i + ', bl' + j + ')) | 0;');
-        src.push('hi = Math.imul(ah' + i + ', bh' + j + ');');
-
-        src.push('w' + k + ' = (w' + k + ' + lo) | 0;');
-        src.push('w' + k + ' = (w' + k + ' + ((mid & 0x1fff) << 13)) | 0;');
-        src.push('c = (c + hi) | 0;');
-        src.push('c = (c + (mid >>> 13)) | 0;');
-        src.push('c = (c + (w' + k + ' >>> 26)) | 0;');
-        src.push('w' + k + ' &= 0x3ffffff;');
-      }
-    }
-    // Store in separate step for better memory access
-    for (var k = 0; k < len; k++)
-      src.push('o[' + k + '] = w' + k + ';');
-    src.push('if (c !== 0) {',
-             '  o[' + k + '] = c;',
-             '  out.length++;',
-             '}',
-             'return out;');
-
-    return src.join('\n');
-  }
-  console.log(_genCombMulTo(10, 10));
-  */
-
   function smallMulTo (self, num, out) {
     out.negative = num.negative ^ self.negative;
     var len = (self.length + num.length) | 0;
@@ -18119,1063 +18098,483 @@ exports['1.3.132.0.35'] = 'p521'
     var bl9 = b9 & 0x1fff;
     var bh9 = b9 >>> 13;
 
+    out.negative = self.negative ^ num.negative;
     out.length = 19;
     /* k = 0 */
-    var w0 = c;
-    c = 0;
     lo = Math.imul(al0, bl0);
     mid = Math.imul(al0, bh0);
-    mid = (mid + Math.imul(ah0, bl0)) | 0;
+    mid += Math.imul(ah0, bl0);
     hi = Math.imul(ah0, bh0);
-    w0 = (w0 + lo) | 0;
-    w0 = (w0 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w0 >>> 26)) | 0;
+    var w0 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w0 >>> 26);
     w0 &= 0x3ffffff;
     /* k = 1 */
-    var w1 = c;
-    c = 0;
     lo = Math.imul(al1, bl0);
     mid = Math.imul(al1, bh0);
-    mid = (mid + Math.imul(ah1, bl0)) | 0;
+    mid += Math.imul(ah1, bl0);
     hi = Math.imul(ah1, bh0);
-    w1 = (w1 + lo) | 0;
-    w1 = (w1 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w1 >>> 26)) | 0;
-    w1 &= 0x3ffffff;
-    lo = Math.imul(al0, bl1);
-    mid = Math.imul(al0, bh1);
-    mid = (mid + Math.imul(ah0, bl1)) | 0;
-    hi = Math.imul(ah0, bh1);
-    w1 = (w1 + lo) | 0;
-    w1 = (w1 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w1 >>> 26)) | 0;
+    lo += Math.imul(al0, bl1);
+    mid += Math.imul(al0, bh1);
+    mid += Math.imul(ah0, bl1);
+    hi += Math.imul(ah0, bh1);
+    var w1 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w1 >>> 26);
     w1 &= 0x3ffffff;
     /* k = 2 */
-    var w2 = c;
-    c = 0;
     lo = Math.imul(al2, bl0);
     mid = Math.imul(al2, bh0);
-    mid = (mid + Math.imul(ah2, bl0)) | 0;
+    mid += Math.imul(ah2, bl0);
     hi = Math.imul(ah2, bh0);
-    w2 = (w2 + lo) | 0;
-    w2 = (w2 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w2 >>> 26)) | 0;
-    w2 &= 0x3ffffff;
-    lo = Math.imul(al1, bl1);
-    mid = Math.imul(al1, bh1);
-    mid = (mid + Math.imul(ah1, bl1)) | 0;
-    hi = Math.imul(ah1, bh1);
-    w2 = (w2 + lo) | 0;
-    w2 = (w2 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w2 >>> 26)) | 0;
-    w2 &= 0x3ffffff;
-    lo = Math.imul(al0, bl2);
-    mid = Math.imul(al0, bh2);
-    mid = (mid + Math.imul(ah0, bl2)) | 0;
-    hi = Math.imul(ah0, bh2);
-    w2 = (w2 + lo) | 0;
-    w2 = (w2 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w2 >>> 26)) | 0;
+    lo += Math.imul(al1, bl1);
+    mid += Math.imul(al1, bh1);
+    mid += Math.imul(ah1, bl1);
+    hi += Math.imul(ah1, bh1);
+    lo += Math.imul(al0, bl2);
+    mid += Math.imul(al0, bh2);
+    mid += Math.imul(ah0, bl2);
+    hi += Math.imul(ah0, bh2);
+    var w2 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w2 >>> 26);
     w2 &= 0x3ffffff;
     /* k = 3 */
-    var w3 = c;
-    c = 0;
     lo = Math.imul(al3, bl0);
     mid = Math.imul(al3, bh0);
-    mid = (mid + Math.imul(ah3, bl0)) | 0;
+    mid += Math.imul(ah3, bl0);
     hi = Math.imul(ah3, bh0);
-    w3 = (w3 + lo) | 0;
-    w3 = (w3 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w3 >>> 26)) | 0;
-    w3 &= 0x3ffffff;
-    lo = Math.imul(al2, bl1);
-    mid = Math.imul(al2, bh1);
-    mid = (mid + Math.imul(ah2, bl1)) | 0;
-    hi = Math.imul(ah2, bh1);
-    w3 = (w3 + lo) | 0;
-    w3 = (w3 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w3 >>> 26)) | 0;
-    w3 &= 0x3ffffff;
-    lo = Math.imul(al1, bl2);
-    mid = Math.imul(al1, bh2);
-    mid = (mid + Math.imul(ah1, bl2)) | 0;
-    hi = Math.imul(ah1, bh2);
-    w3 = (w3 + lo) | 0;
-    w3 = (w3 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w3 >>> 26)) | 0;
-    w3 &= 0x3ffffff;
-    lo = Math.imul(al0, bl3);
-    mid = Math.imul(al0, bh3);
-    mid = (mid + Math.imul(ah0, bl3)) | 0;
-    hi = Math.imul(ah0, bh3);
-    w3 = (w3 + lo) | 0;
-    w3 = (w3 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w3 >>> 26)) | 0;
+    lo += Math.imul(al2, bl1);
+    mid += Math.imul(al2, bh1);
+    mid += Math.imul(ah2, bl1);
+    hi += Math.imul(ah2, bh1);
+    lo += Math.imul(al1, bl2);
+    mid += Math.imul(al1, bh2);
+    mid += Math.imul(ah1, bl2);
+    hi += Math.imul(ah1, bh2);
+    lo += Math.imul(al0, bl3);
+    mid += Math.imul(al0, bh3);
+    mid += Math.imul(ah0, bl3);
+    hi += Math.imul(ah0, bh3);
+    var w3 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w3 >>> 26);
     w3 &= 0x3ffffff;
     /* k = 4 */
-    var w4 = c;
-    c = 0;
     lo = Math.imul(al4, bl0);
     mid = Math.imul(al4, bh0);
-    mid = (mid + Math.imul(ah4, bl0)) | 0;
+    mid += Math.imul(ah4, bl0);
     hi = Math.imul(ah4, bh0);
-    w4 = (w4 + lo) | 0;
-    w4 = (w4 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w4 >>> 26)) | 0;
-    w4 &= 0x3ffffff;
-    lo = Math.imul(al3, bl1);
-    mid = Math.imul(al3, bh1);
-    mid = (mid + Math.imul(ah3, bl1)) | 0;
-    hi = Math.imul(ah3, bh1);
-    w4 = (w4 + lo) | 0;
-    w4 = (w4 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w4 >>> 26)) | 0;
-    w4 &= 0x3ffffff;
-    lo = Math.imul(al2, bl2);
-    mid = Math.imul(al2, bh2);
-    mid = (mid + Math.imul(ah2, bl2)) | 0;
-    hi = Math.imul(ah2, bh2);
-    w4 = (w4 + lo) | 0;
-    w4 = (w4 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w4 >>> 26)) | 0;
-    w4 &= 0x3ffffff;
-    lo = Math.imul(al1, bl3);
-    mid = Math.imul(al1, bh3);
-    mid = (mid + Math.imul(ah1, bl3)) | 0;
-    hi = Math.imul(ah1, bh3);
-    w4 = (w4 + lo) | 0;
-    w4 = (w4 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w4 >>> 26)) | 0;
-    w4 &= 0x3ffffff;
-    lo = Math.imul(al0, bl4);
-    mid = Math.imul(al0, bh4);
-    mid = (mid + Math.imul(ah0, bl4)) | 0;
-    hi = Math.imul(ah0, bh4);
-    w4 = (w4 + lo) | 0;
-    w4 = (w4 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w4 >>> 26)) | 0;
+    lo += Math.imul(al3, bl1);
+    mid += Math.imul(al3, bh1);
+    mid += Math.imul(ah3, bl1);
+    hi += Math.imul(ah3, bh1);
+    lo += Math.imul(al2, bl2);
+    mid += Math.imul(al2, bh2);
+    mid += Math.imul(ah2, bl2);
+    hi += Math.imul(ah2, bh2);
+    lo += Math.imul(al1, bl3);
+    mid += Math.imul(al1, bh3);
+    mid += Math.imul(ah1, bl3);
+    hi += Math.imul(ah1, bh3);
+    lo += Math.imul(al0, bl4);
+    mid += Math.imul(al0, bh4);
+    mid += Math.imul(ah0, bl4);
+    hi += Math.imul(ah0, bh4);
+    var w4 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w4 >>> 26);
     w4 &= 0x3ffffff;
     /* k = 5 */
-    var w5 = c;
-    c = 0;
     lo = Math.imul(al5, bl0);
     mid = Math.imul(al5, bh0);
-    mid = (mid + Math.imul(ah5, bl0)) | 0;
+    mid += Math.imul(ah5, bl0);
     hi = Math.imul(ah5, bh0);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
-    w5 &= 0x3ffffff;
-    lo = Math.imul(al4, bl1);
-    mid = Math.imul(al4, bh1);
-    mid = (mid + Math.imul(ah4, bl1)) | 0;
-    hi = Math.imul(ah4, bh1);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
-    w5 &= 0x3ffffff;
-    lo = Math.imul(al3, bl2);
-    mid = Math.imul(al3, bh2);
-    mid = (mid + Math.imul(ah3, bl2)) | 0;
-    hi = Math.imul(ah3, bh2);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
-    w5 &= 0x3ffffff;
-    lo = Math.imul(al2, bl3);
-    mid = Math.imul(al2, bh3);
-    mid = (mid + Math.imul(ah2, bl3)) | 0;
-    hi = Math.imul(ah2, bh3);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
-    w5 &= 0x3ffffff;
-    lo = Math.imul(al1, bl4);
-    mid = Math.imul(al1, bh4);
-    mid = (mid + Math.imul(ah1, bl4)) | 0;
-    hi = Math.imul(ah1, bh4);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
-    w5 &= 0x3ffffff;
-    lo = Math.imul(al0, bl5);
-    mid = Math.imul(al0, bh5);
-    mid = (mid + Math.imul(ah0, bl5)) | 0;
-    hi = Math.imul(ah0, bh5);
-    w5 = (w5 + lo) | 0;
-    w5 = (w5 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w5 >>> 26)) | 0;
+    lo += Math.imul(al4, bl1);
+    mid += Math.imul(al4, bh1);
+    mid += Math.imul(ah4, bl1);
+    hi += Math.imul(ah4, bh1);
+    lo += Math.imul(al3, bl2);
+    mid += Math.imul(al3, bh2);
+    mid += Math.imul(ah3, bl2);
+    hi += Math.imul(ah3, bh2);
+    lo += Math.imul(al2, bl3);
+    mid += Math.imul(al2, bh3);
+    mid += Math.imul(ah2, bl3);
+    hi += Math.imul(ah2, bh3);
+    lo += Math.imul(al1, bl4);
+    mid += Math.imul(al1, bh4);
+    mid += Math.imul(ah1, bl4);
+    hi += Math.imul(ah1, bh4);
+    lo += Math.imul(al0, bl5);
+    mid += Math.imul(al0, bh5);
+    mid += Math.imul(ah0, bl5);
+    hi += Math.imul(ah0, bh5);
+    var w5 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w5 >>> 26);
     w5 &= 0x3ffffff;
     /* k = 6 */
-    var w6 = c;
-    c = 0;
     lo = Math.imul(al6, bl0);
     mid = Math.imul(al6, bh0);
-    mid = (mid + Math.imul(ah6, bl0)) | 0;
+    mid += Math.imul(ah6, bl0);
     hi = Math.imul(ah6, bh0);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al5, bl1);
-    mid = Math.imul(al5, bh1);
-    mid = (mid + Math.imul(ah5, bl1)) | 0;
-    hi = Math.imul(ah5, bh1);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al4, bl2);
-    mid = Math.imul(al4, bh2);
-    mid = (mid + Math.imul(ah4, bl2)) | 0;
-    hi = Math.imul(ah4, bh2);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al3, bl3);
-    mid = Math.imul(al3, bh3);
-    mid = (mid + Math.imul(ah3, bl3)) | 0;
-    hi = Math.imul(ah3, bh3);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al2, bl4);
-    mid = Math.imul(al2, bh4);
-    mid = (mid + Math.imul(ah2, bl4)) | 0;
-    hi = Math.imul(ah2, bh4);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al1, bl5);
-    mid = Math.imul(al1, bh5);
-    mid = (mid + Math.imul(ah1, bl5)) | 0;
-    hi = Math.imul(ah1, bh5);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
-    w6 &= 0x3ffffff;
-    lo = Math.imul(al0, bl6);
-    mid = Math.imul(al0, bh6);
-    mid = (mid + Math.imul(ah0, bl6)) | 0;
-    hi = Math.imul(ah0, bh6);
-    w6 = (w6 + lo) | 0;
-    w6 = (w6 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w6 >>> 26)) | 0;
+    lo += Math.imul(al5, bl1);
+    mid += Math.imul(al5, bh1);
+    mid += Math.imul(ah5, bl1);
+    hi += Math.imul(ah5, bh1);
+    lo += Math.imul(al4, bl2);
+    mid += Math.imul(al4, bh2);
+    mid += Math.imul(ah4, bl2);
+    hi += Math.imul(ah4, bh2);
+    lo += Math.imul(al3, bl3);
+    mid += Math.imul(al3, bh3);
+    mid += Math.imul(ah3, bl3);
+    hi += Math.imul(ah3, bh3);
+    lo += Math.imul(al2, bl4);
+    mid += Math.imul(al2, bh4);
+    mid += Math.imul(ah2, bl4);
+    hi += Math.imul(ah2, bh4);
+    lo += Math.imul(al1, bl5);
+    mid += Math.imul(al1, bh5);
+    mid += Math.imul(ah1, bl5);
+    hi += Math.imul(ah1, bh5);
+    lo += Math.imul(al0, bl6);
+    mid += Math.imul(al0, bh6);
+    mid += Math.imul(ah0, bl6);
+    hi += Math.imul(ah0, bh6);
+    var w6 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w6 >>> 26);
     w6 &= 0x3ffffff;
     /* k = 7 */
-    var w7 = c;
-    c = 0;
     lo = Math.imul(al7, bl0);
     mid = Math.imul(al7, bh0);
-    mid = (mid + Math.imul(ah7, bl0)) | 0;
+    mid += Math.imul(ah7, bl0);
     hi = Math.imul(ah7, bh0);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al6, bl1);
-    mid = Math.imul(al6, bh1);
-    mid = (mid + Math.imul(ah6, bl1)) | 0;
-    hi = Math.imul(ah6, bh1);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al5, bl2);
-    mid = Math.imul(al5, bh2);
-    mid = (mid + Math.imul(ah5, bl2)) | 0;
-    hi = Math.imul(ah5, bh2);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al4, bl3);
-    mid = Math.imul(al4, bh3);
-    mid = (mid + Math.imul(ah4, bl3)) | 0;
-    hi = Math.imul(ah4, bh3);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al3, bl4);
-    mid = Math.imul(al3, bh4);
-    mid = (mid + Math.imul(ah3, bl4)) | 0;
-    hi = Math.imul(ah3, bh4);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al2, bl5);
-    mid = Math.imul(al2, bh5);
-    mid = (mid + Math.imul(ah2, bl5)) | 0;
-    hi = Math.imul(ah2, bh5);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al1, bl6);
-    mid = Math.imul(al1, bh6);
-    mid = (mid + Math.imul(ah1, bl6)) | 0;
-    hi = Math.imul(ah1, bh6);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
-    w7 &= 0x3ffffff;
-    lo = Math.imul(al0, bl7);
-    mid = Math.imul(al0, bh7);
-    mid = (mid + Math.imul(ah0, bl7)) | 0;
-    hi = Math.imul(ah0, bh7);
-    w7 = (w7 + lo) | 0;
-    w7 = (w7 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w7 >>> 26)) | 0;
+    lo += Math.imul(al6, bl1);
+    mid += Math.imul(al6, bh1);
+    mid += Math.imul(ah6, bl1);
+    hi += Math.imul(ah6, bh1);
+    lo += Math.imul(al5, bl2);
+    mid += Math.imul(al5, bh2);
+    mid += Math.imul(ah5, bl2);
+    hi += Math.imul(ah5, bh2);
+    lo += Math.imul(al4, bl3);
+    mid += Math.imul(al4, bh3);
+    mid += Math.imul(ah4, bl3);
+    hi += Math.imul(ah4, bh3);
+    lo += Math.imul(al3, bl4);
+    mid += Math.imul(al3, bh4);
+    mid += Math.imul(ah3, bl4);
+    hi += Math.imul(ah3, bh4);
+    lo += Math.imul(al2, bl5);
+    mid += Math.imul(al2, bh5);
+    mid += Math.imul(ah2, bl5);
+    hi += Math.imul(ah2, bh5);
+    lo += Math.imul(al1, bl6);
+    mid += Math.imul(al1, bh6);
+    mid += Math.imul(ah1, bl6);
+    hi += Math.imul(ah1, bh6);
+    lo += Math.imul(al0, bl7);
+    mid += Math.imul(al0, bh7);
+    mid += Math.imul(ah0, bl7);
+    hi += Math.imul(ah0, bh7);
+    var w7 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w7 >>> 26);
     w7 &= 0x3ffffff;
     /* k = 8 */
-    var w8 = c;
-    c = 0;
     lo = Math.imul(al8, bl0);
     mid = Math.imul(al8, bh0);
-    mid = (mid + Math.imul(ah8, bl0)) | 0;
+    mid += Math.imul(ah8, bl0);
     hi = Math.imul(ah8, bh0);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al7, bl1);
-    mid = Math.imul(al7, bh1);
-    mid = (mid + Math.imul(ah7, bl1)) | 0;
-    hi = Math.imul(ah7, bh1);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al6, bl2);
-    mid = Math.imul(al6, bh2);
-    mid = (mid + Math.imul(ah6, bl2)) | 0;
-    hi = Math.imul(ah6, bh2);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al5, bl3);
-    mid = Math.imul(al5, bh3);
-    mid = (mid + Math.imul(ah5, bl3)) | 0;
-    hi = Math.imul(ah5, bh3);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al4, bl4);
-    mid = Math.imul(al4, bh4);
-    mid = (mid + Math.imul(ah4, bl4)) | 0;
-    hi = Math.imul(ah4, bh4);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al3, bl5);
-    mid = Math.imul(al3, bh5);
-    mid = (mid + Math.imul(ah3, bl5)) | 0;
-    hi = Math.imul(ah3, bh5);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al2, bl6);
-    mid = Math.imul(al2, bh6);
-    mid = (mid + Math.imul(ah2, bl6)) | 0;
-    hi = Math.imul(ah2, bh6);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al1, bl7);
-    mid = Math.imul(al1, bh7);
-    mid = (mid + Math.imul(ah1, bl7)) | 0;
-    hi = Math.imul(ah1, bh7);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
-    w8 &= 0x3ffffff;
-    lo = Math.imul(al0, bl8);
-    mid = Math.imul(al0, bh8);
-    mid = (mid + Math.imul(ah0, bl8)) | 0;
-    hi = Math.imul(ah0, bh8);
-    w8 = (w8 + lo) | 0;
-    w8 = (w8 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w8 >>> 26)) | 0;
+    lo += Math.imul(al7, bl1);
+    mid += Math.imul(al7, bh1);
+    mid += Math.imul(ah7, bl1);
+    hi += Math.imul(ah7, bh1);
+    lo += Math.imul(al6, bl2);
+    mid += Math.imul(al6, bh2);
+    mid += Math.imul(ah6, bl2);
+    hi += Math.imul(ah6, bh2);
+    lo += Math.imul(al5, bl3);
+    mid += Math.imul(al5, bh3);
+    mid += Math.imul(ah5, bl3);
+    hi += Math.imul(ah5, bh3);
+    lo += Math.imul(al4, bl4);
+    mid += Math.imul(al4, bh4);
+    mid += Math.imul(ah4, bl4);
+    hi += Math.imul(ah4, bh4);
+    lo += Math.imul(al3, bl5);
+    mid += Math.imul(al3, bh5);
+    mid += Math.imul(ah3, bl5);
+    hi += Math.imul(ah3, bh5);
+    lo += Math.imul(al2, bl6);
+    mid += Math.imul(al2, bh6);
+    mid += Math.imul(ah2, bl6);
+    hi += Math.imul(ah2, bh6);
+    lo += Math.imul(al1, bl7);
+    mid += Math.imul(al1, bh7);
+    mid += Math.imul(ah1, bl7);
+    hi += Math.imul(ah1, bh7);
+    lo += Math.imul(al0, bl8);
+    mid += Math.imul(al0, bh8);
+    mid += Math.imul(ah0, bl8);
+    hi += Math.imul(ah0, bh8);
+    var w8 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w8 >>> 26);
     w8 &= 0x3ffffff;
     /* k = 9 */
-    var w9 = c;
-    c = 0;
     lo = Math.imul(al9, bl0);
     mid = Math.imul(al9, bh0);
-    mid = (mid + Math.imul(ah9, bl0)) | 0;
+    mid += Math.imul(ah9, bl0);
     hi = Math.imul(ah9, bh0);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al8, bl1);
-    mid = Math.imul(al8, bh1);
-    mid = (mid + Math.imul(ah8, bl1)) | 0;
-    hi = Math.imul(ah8, bh1);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al7, bl2);
-    mid = Math.imul(al7, bh2);
-    mid = (mid + Math.imul(ah7, bl2)) | 0;
-    hi = Math.imul(ah7, bh2);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al6, bl3);
-    mid = Math.imul(al6, bh3);
-    mid = (mid + Math.imul(ah6, bl3)) | 0;
-    hi = Math.imul(ah6, bh3);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al5, bl4);
-    mid = Math.imul(al5, bh4);
-    mid = (mid + Math.imul(ah5, bl4)) | 0;
-    hi = Math.imul(ah5, bh4);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al4, bl5);
-    mid = Math.imul(al4, bh5);
-    mid = (mid + Math.imul(ah4, bl5)) | 0;
-    hi = Math.imul(ah4, bh5);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al3, bl6);
-    mid = Math.imul(al3, bh6);
-    mid = (mid + Math.imul(ah3, bl6)) | 0;
-    hi = Math.imul(ah3, bh6);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al2, bl7);
-    mid = Math.imul(al2, bh7);
-    mid = (mid + Math.imul(ah2, bl7)) | 0;
-    hi = Math.imul(ah2, bh7);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al1, bl8);
-    mid = Math.imul(al1, bh8);
-    mid = (mid + Math.imul(ah1, bl8)) | 0;
-    hi = Math.imul(ah1, bh8);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
-    w9 &= 0x3ffffff;
-    lo = Math.imul(al0, bl9);
-    mid = Math.imul(al0, bh9);
-    mid = (mid + Math.imul(ah0, bl9)) | 0;
-    hi = Math.imul(ah0, bh9);
-    w9 = (w9 + lo) | 0;
-    w9 = (w9 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w9 >>> 26)) | 0;
+    lo += Math.imul(al8, bl1);
+    mid += Math.imul(al8, bh1);
+    mid += Math.imul(ah8, bl1);
+    hi += Math.imul(ah8, bh1);
+    lo += Math.imul(al7, bl2);
+    mid += Math.imul(al7, bh2);
+    mid += Math.imul(ah7, bl2);
+    hi += Math.imul(ah7, bh2);
+    lo += Math.imul(al6, bl3);
+    mid += Math.imul(al6, bh3);
+    mid += Math.imul(ah6, bl3);
+    hi += Math.imul(ah6, bh3);
+    lo += Math.imul(al5, bl4);
+    mid += Math.imul(al5, bh4);
+    mid += Math.imul(ah5, bl4);
+    hi += Math.imul(ah5, bh4);
+    lo += Math.imul(al4, bl5);
+    mid += Math.imul(al4, bh5);
+    mid += Math.imul(ah4, bl5);
+    hi += Math.imul(ah4, bh5);
+    lo += Math.imul(al3, bl6);
+    mid += Math.imul(al3, bh6);
+    mid += Math.imul(ah3, bl6);
+    hi += Math.imul(ah3, bh6);
+    lo += Math.imul(al2, bl7);
+    mid += Math.imul(al2, bh7);
+    mid += Math.imul(ah2, bl7);
+    hi += Math.imul(ah2, bh7);
+    lo += Math.imul(al1, bl8);
+    mid += Math.imul(al1, bh8);
+    mid += Math.imul(ah1, bl8);
+    hi += Math.imul(ah1, bh8);
+    lo += Math.imul(al0, bl9);
+    mid += Math.imul(al0, bh9);
+    mid += Math.imul(ah0, bl9);
+    hi += Math.imul(ah0, bh9);
+    var w9 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w9 >>> 26);
     w9 &= 0x3ffffff;
     /* k = 10 */
-    var w10 = c;
-    c = 0;
     lo = Math.imul(al9, bl1);
     mid = Math.imul(al9, bh1);
-    mid = (mid + Math.imul(ah9, bl1)) | 0;
+    mid += Math.imul(ah9, bl1);
     hi = Math.imul(ah9, bh1);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al8, bl2);
-    mid = Math.imul(al8, bh2);
-    mid = (mid + Math.imul(ah8, bl2)) | 0;
-    hi = Math.imul(ah8, bh2);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al7, bl3);
-    mid = Math.imul(al7, bh3);
-    mid = (mid + Math.imul(ah7, bl3)) | 0;
-    hi = Math.imul(ah7, bh3);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al6, bl4);
-    mid = Math.imul(al6, bh4);
-    mid = (mid + Math.imul(ah6, bl4)) | 0;
-    hi = Math.imul(ah6, bh4);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al5, bl5);
-    mid = Math.imul(al5, bh5);
-    mid = (mid + Math.imul(ah5, bl5)) | 0;
-    hi = Math.imul(ah5, bh5);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al4, bl6);
-    mid = Math.imul(al4, bh6);
-    mid = (mid + Math.imul(ah4, bl6)) | 0;
-    hi = Math.imul(ah4, bh6);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al3, bl7);
-    mid = Math.imul(al3, bh7);
-    mid = (mid + Math.imul(ah3, bl7)) | 0;
-    hi = Math.imul(ah3, bh7);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al2, bl8);
-    mid = Math.imul(al2, bh8);
-    mid = (mid + Math.imul(ah2, bl8)) | 0;
-    hi = Math.imul(ah2, bh8);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
-    w10 &= 0x3ffffff;
-    lo = Math.imul(al1, bl9);
-    mid = Math.imul(al1, bh9);
-    mid = (mid + Math.imul(ah1, bl9)) | 0;
-    hi = Math.imul(ah1, bh9);
-    w10 = (w10 + lo) | 0;
-    w10 = (w10 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w10 >>> 26)) | 0;
+    lo += Math.imul(al8, bl2);
+    mid += Math.imul(al8, bh2);
+    mid += Math.imul(ah8, bl2);
+    hi += Math.imul(ah8, bh2);
+    lo += Math.imul(al7, bl3);
+    mid += Math.imul(al7, bh3);
+    mid += Math.imul(ah7, bl3);
+    hi += Math.imul(ah7, bh3);
+    lo += Math.imul(al6, bl4);
+    mid += Math.imul(al6, bh4);
+    mid += Math.imul(ah6, bl4);
+    hi += Math.imul(ah6, bh4);
+    lo += Math.imul(al5, bl5);
+    mid += Math.imul(al5, bh5);
+    mid += Math.imul(ah5, bl5);
+    hi += Math.imul(ah5, bh5);
+    lo += Math.imul(al4, bl6);
+    mid += Math.imul(al4, bh6);
+    mid += Math.imul(ah4, bl6);
+    hi += Math.imul(ah4, bh6);
+    lo += Math.imul(al3, bl7);
+    mid += Math.imul(al3, bh7);
+    mid += Math.imul(ah3, bl7);
+    hi += Math.imul(ah3, bh7);
+    lo += Math.imul(al2, bl8);
+    mid += Math.imul(al2, bh8);
+    mid += Math.imul(ah2, bl8);
+    hi += Math.imul(ah2, bh8);
+    lo += Math.imul(al1, bl9);
+    mid += Math.imul(al1, bh9);
+    mid += Math.imul(ah1, bl9);
+    hi += Math.imul(ah1, bh9);
+    var w10 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w10 >>> 26);
     w10 &= 0x3ffffff;
     /* k = 11 */
-    var w11 = c;
-    c = 0;
     lo = Math.imul(al9, bl2);
     mid = Math.imul(al9, bh2);
-    mid = (mid + Math.imul(ah9, bl2)) | 0;
+    mid += Math.imul(ah9, bl2);
     hi = Math.imul(ah9, bh2);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al8, bl3);
-    mid = Math.imul(al8, bh3);
-    mid = (mid + Math.imul(ah8, bl3)) | 0;
-    hi = Math.imul(ah8, bh3);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al7, bl4);
-    mid = Math.imul(al7, bh4);
-    mid = (mid + Math.imul(ah7, bl4)) | 0;
-    hi = Math.imul(ah7, bh4);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al6, bl5);
-    mid = Math.imul(al6, bh5);
-    mid = (mid + Math.imul(ah6, bl5)) | 0;
-    hi = Math.imul(ah6, bh5);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al5, bl6);
-    mid = Math.imul(al5, bh6);
-    mid = (mid + Math.imul(ah5, bl6)) | 0;
-    hi = Math.imul(ah5, bh6);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al4, bl7);
-    mid = Math.imul(al4, bh7);
-    mid = (mid + Math.imul(ah4, bl7)) | 0;
-    hi = Math.imul(ah4, bh7);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al3, bl8);
-    mid = Math.imul(al3, bh8);
-    mid = (mid + Math.imul(ah3, bl8)) | 0;
-    hi = Math.imul(ah3, bh8);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
-    w11 &= 0x3ffffff;
-    lo = Math.imul(al2, bl9);
-    mid = Math.imul(al2, bh9);
-    mid = (mid + Math.imul(ah2, bl9)) | 0;
-    hi = Math.imul(ah2, bh9);
-    w11 = (w11 + lo) | 0;
-    w11 = (w11 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w11 >>> 26)) | 0;
+    lo += Math.imul(al8, bl3);
+    mid += Math.imul(al8, bh3);
+    mid += Math.imul(ah8, bl3);
+    hi += Math.imul(ah8, bh3);
+    lo += Math.imul(al7, bl4);
+    mid += Math.imul(al7, bh4);
+    mid += Math.imul(ah7, bl4);
+    hi += Math.imul(ah7, bh4);
+    lo += Math.imul(al6, bl5);
+    mid += Math.imul(al6, bh5);
+    mid += Math.imul(ah6, bl5);
+    hi += Math.imul(ah6, bh5);
+    lo += Math.imul(al5, bl6);
+    mid += Math.imul(al5, bh6);
+    mid += Math.imul(ah5, bl6);
+    hi += Math.imul(ah5, bh6);
+    lo += Math.imul(al4, bl7);
+    mid += Math.imul(al4, bh7);
+    mid += Math.imul(ah4, bl7);
+    hi += Math.imul(ah4, bh7);
+    lo += Math.imul(al3, bl8);
+    mid += Math.imul(al3, bh8);
+    mid += Math.imul(ah3, bl8);
+    hi += Math.imul(ah3, bh8);
+    lo += Math.imul(al2, bl9);
+    mid += Math.imul(al2, bh9);
+    mid += Math.imul(ah2, bl9);
+    hi += Math.imul(ah2, bh9);
+    var w11 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w11 >>> 26);
     w11 &= 0x3ffffff;
     /* k = 12 */
-    var w12 = c;
-    c = 0;
     lo = Math.imul(al9, bl3);
     mid = Math.imul(al9, bh3);
-    mid = (mid + Math.imul(ah9, bl3)) | 0;
+    mid += Math.imul(ah9, bl3);
     hi = Math.imul(ah9, bh3);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al8, bl4);
-    mid = Math.imul(al8, bh4);
-    mid = (mid + Math.imul(ah8, bl4)) | 0;
-    hi = Math.imul(ah8, bh4);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al7, bl5);
-    mid = Math.imul(al7, bh5);
-    mid = (mid + Math.imul(ah7, bl5)) | 0;
-    hi = Math.imul(ah7, bh5);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al6, bl6);
-    mid = Math.imul(al6, bh6);
-    mid = (mid + Math.imul(ah6, bl6)) | 0;
-    hi = Math.imul(ah6, bh6);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al5, bl7);
-    mid = Math.imul(al5, bh7);
-    mid = (mid + Math.imul(ah5, bl7)) | 0;
-    hi = Math.imul(ah5, bh7);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al4, bl8);
-    mid = Math.imul(al4, bh8);
-    mid = (mid + Math.imul(ah4, bl8)) | 0;
-    hi = Math.imul(ah4, bh8);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
-    w12 &= 0x3ffffff;
-    lo = Math.imul(al3, bl9);
-    mid = Math.imul(al3, bh9);
-    mid = (mid + Math.imul(ah3, bl9)) | 0;
-    hi = Math.imul(ah3, bh9);
-    w12 = (w12 + lo) | 0;
-    w12 = (w12 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w12 >>> 26)) | 0;
+    lo += Math.imul(al8, bl4);
+    mid += Math.imul(al8, bh4);
+    mid += Math.imul(ah8, bl4);
+    hi += Math.imul(ah8, bh4);
+    lo += Math.imul(al7, bl5);
+    mid += Math.imul(al7, bh5);
+    mid += Math.imul(ah7, bl5);
+    hi += Math.imul(ah7, bh5);
+    lo += Math.imul(al6, bl6);
+    mid += Math.imul(al6, bh6);
+    mid += Math.imul(ah6, bl6);
+    hi += Math.imul(ah6, bh6);
+    lo += Math.imul(al5, bl7);
+    mid += Math.imul(al5, bh7);
+    mid += Math.imul(ah5, bl7);
+    hi += Math.imul(ah5, bh7);
+    lo += Math.imul(al4, bl8);
+    mid += Math.imul(al4, bh8);
+    mid += Math.imul(ah4, bl8);
+    hi += Math.imul(ah4, bh8);
+    lo += Math.imul(al3, bl9);
+    mid += Math.imul(al3, bh9);
+    mid += Math.imul(ah3, bl9);
+    hi += Math.imul(ah3, bh9);
+    var w12 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w12 >>> 26);
     w12 &= 0x3ffffff;
     /* k = 13 */
-    var w13 = c;
-    c = 0;
     lo = Math.imul(al9, bl4);
     mid = Math.imul(al9, bh4);
-    mid = (mid + Math.imul(ah9, bl4)) | 0;
+    mid += Math.imul(ah9, bl4);
     hi = Math.imul(ah9, bh4);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
-    w13 &= 0x3ffffff;
-    lo = Math.imul(al8, bl5);
-    mid = Math.imul(al8, bh5);
-    mid = (mid + Math.imul(ah8, bl5)) | 0;
-    hi = Math.imul(ah8, bh5);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
-    w13 &= 0x3ffffff;
-    lo = Math.imul(al7, bl6);
-    mid = Math.imul(al7, bh6);
-    mid = (mid + Math.imul(ah7, bl6)) | 0;
-    hi = Math.imul(ah7, bh6);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
-    w13 &= 0x3ffffff;
-    lo = Math.imul(al6, bl7);
-    mid = Math.imul(al6, bh7);
-    mid = (mid + Math.imul(ah6, bl7)) | 0;
-    hi = Math.imul(ah6, bh7);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
-    w13 &= 0x3ffffff;
-    lo = Math.imul(al5, bl8);
-    mid = Math.imul(al5, bh8);
-    mid = (mid + Math.imul(ah5, bl8)) | 0;
-    hi = Math.imul(ah5, bh8);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
-    w13 &= 0x3ffffff;
-    lo = Math.imul(al4, bl9);
-    mid = Math.imul(al4, bh9);
-    mid = (mid + Math.imul(ah4, bl9)) | 0;
-    hi = Math.imul(ah4, bh9);
-    w13 = (w13 + lo) | 0;
-    w13 = (w13 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w13 >>> 26)) | 0;
+    lo += Math.imul(al8, bl5);
+    mid += Math.imul(al8, bh5);
+    mid += Math.imul(ah8, bl5);
+    hi += Math.imul(ah8, bh5);
+    lo += Math.imul(al7, bl6);
+    mid += Math.imul(al7, bh6);
+    mid += Math.imul(ah7, bl6);
+    hi += Math.imul(ah7, bh6);
+    lo += Math.imul(al6, bl7);
+    mid += Math.imul(al6, bh7);
+    mid += Math.imul(ah6, bl7);
+    hi += Math.imul(ah6, bh7);
+    lo += Math.imul(al5, bl8);
+    mid += Math.imul(al5, bh8);
+    mid += Math.imul(ah5, bl8);
+    hi += Math.imul(ah5, bh8);
+    lo += Math.imul(al4, bl9);
+    mid += Math.imul(al4, bh9);
+    mid += Math.imul(ah4, bl9);
+    hi += Math.imul(ah4, bh9);
+    var w13 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w13 >>> 26);
     w13 &= 0x3ffffff;
     /* k = 14 */
-    var w14 = c;
-    c = 0;
     lo = Math.imul(al9, bl5);
     mid = Math.imul(al9, bh5);
-    mid = (mid + Math.imul(ah9, bl5)) | 0;
+    mid += Math.imul(ah9, bl5);
     hi = Math.imul(ah9, bh5);
-    w14 = (w14 + lo) | 0;
-    w14 = (w14 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w14 >>> 26)) | 0;
-    w14 &= 0x3ffffff;
-    lo = Math.imul(al8, bl6);
-    mid = Math.imul(al8, bh6);
-    mid = (mid + Math.imul(ah8, bl6)) | 0;
-    hi = Math.imul(ah8, bh6);
-    w14 = (w14 + lo) | 0;
-    w14 = (w14 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w14 >>> 26)) | 0;
-    w14 &= 0x3ffffff;
-    lo = Math.imul(al7, bl7);
-    mid = Math.imul(al7, bh7);
-    mid = (mid + Math.imul(ah7, bl7)) | 0;
-    hi = Math.imul(ah7, bh7);
-    w14 = (w14 + lo) | 0;
-    w14 = (w14 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w14 >>> 26)) | 0;
-    w14 &= 0x3ffffff;
-    lo = Math.imul(al6, bl8);
-    mid = Math.imul(al6, bh8);
-    mid = (mid + Math.imul(ah6, bl8)) | 0;
-    hi = Math.imul(ah6, bh8);
-    w14 = (w14 + lo) | 0;
-    w14 = (w14 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w14 >>> 26)) | 0;
-    w14 &= 0x3ffffff;
-    lo = Math.imul(al5, bl9);
-    mid = Math.imul(al5, bh9);
-    mid = (mid + Math.imul(ah5, bl9)) | 0;
-    hi = Math.imul(ah5, bh9);
-    w14 = (w14 + lo) | 0;
-    w14 = (w14 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w14 >>> 26)) | 0;
+    lo += Math.imul(al8, bl6);
+    mid += Math.imul(al8, bh6);
+    mid += Math.imul(ah8, bl6);
+    hi += Math.imul(ah8, bh6);
+    lo += Math.imul(al7, bl7);
+    mid += Math.imul(al7, bh7);
+    mid += Math.imul(ah7, bl7);
+    hi += Math.imul(ah7, bh7);
+    lo += Math.imul(al6, bl8);
+    mid += Math.imul(al6, bh8);
+    mid += Math.imul(ah6, bl8);
+    hi += Math.imul(ah6, bh8);
+    lo += Math.imul(al5, bl9);
+    mid += Math.imul(al5, bh9);
+    mid += Math.imul(ah5, bl9);
+    hi += Math.imul(ah5, bh9);
+    var w14 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w14 >>> 26);
     w14 &= 0x3ffffff;
     /* k = 15 */
-    var w15 = c;
-    c = 0;
     lo = Math.imul(al9, bl6);
     mid = Math.imul(al9, bh6);
-    mid = (mid + Math.imul(ah9, bl6)) | 0;
+    mid += Math.imul(ah9, bl6);
     hi = Math.imul(ah9, bh6);
-    w15 = (w15 + lo) | 0;
-    w15 = (w15 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w15 >>> 26)) | 0;
-    w15 &= 0x3ffffff;
-    lo = Math.imul(al8, bl7);
-    mid = Math.imul(al8, bh7);
-    mid = (mid + Math.imul(ah8, bl7)) | 0;
-    hi = Math.imul(ah8, bh7);
-    w15 = (w15 + lo) | 0;
-    w15 = (w15 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w15 >>> 26)) | 0;
-    w15 &= 0x3ffffff;
-    lo = Math.imul(al7, bl8);
-    mid = Math.imul(al7, bh8);
-    mid = (mid + Math.imul(ah7, bl8)) | 0;
-    hi = Math.imul(ah7, bh8);
-    w15 = (w15 + lo) | 0;
-    w15 = (w15 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w15 >>> 26)) | 0;
-    w15 &= 0x3ffffff;
-    lo = Math.imul(al6, bl9);
-    mid = Math.imul(al6, bh9);
-    mid = (mid + Math.imul(ah6, bl9)) | 0;
-    hi = Math.imul(ah6, bh9);
-    w15 = (w15 + lo) | 0;
-    w15 = (w15 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w15 >>> 26)) | 0;
+    lo += Math.imul(al8, bl7);
+    mid += Math.imul(al8, bh7);
+    mid += Math.imul(ah8, bl7);
+    hi += Math.imul(ah8, bh7);
+    lo += Math.imul(al7, bl8);
+    mid += Math.imul(al7, bh8);
+    mid += Math.imul(ah7, bl8);
+    hi += Math.imul(ah7, bh8);
+    lo += Math.imul(al6, bl9);
+    mid += Math.imul(al6, bh9);
+    mid += Math.imul(ah6, bl9);
+    hi += Math.imul(ah6, bh9);
+    var w15 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w15 >>> 26);
     w15 &= 0x3ffffff;
     /* k = 16 */
-    var w16 = c;
-    c = 0;
     lo = Math.imul(al9, bl7);
     mid = Math.imul(al9, bh7);
-    mid = (mid + Math.imul(ah9, bl7)) | 0;
+    mid += Math.imul(ah9, bl7);
     hi = Math.imul(ah9, bh7);
-    w16 = (w16 + lo) | 0;
-    w16 = (w16 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w16 >>> 26)) | 0;
-    w16 &= 0x3ffffff;
-    lo = Math.imul(al8, bl8);
-    mid = Math.imul(al8, bh8);
-    mid = (mid + Math.imul(ah8, bl8)) | 0;
-    hi = Math.imul(ah8, bh8);
-    w16 = (w16 + lo) | 0;
-    w16 = (w16 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w16 >>> 26)) | 0;
-    w16 &= 0x3ffffff;
-    lo = Math.imul(al7, bl9);
-    mid = Math.imul(al7, bh9);
-    mid = (mid + Math.imul(ah7, bl9)) | 0;
-    hi = Math.imul(ah7, bh9);
-    w16 = (w16 + lo) | 0;
-    w16 = (w16 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w16 >>> 26)) | 0;
+    lo += Math.imul(al8, bl8);
+    mid += Math.imul(al8, bh8);
+    mid += Math.imul(ah8, bl8);
+    hi += Math.imul(ah8, bh8);
+    lo += Math.imul(al7, bl9);
+    mid += Math.imul(al7, bh9);
+    mid += Math.imul(ah7, bl9);
+    hi += Math.imul(ah7, bh9);
+    var w16 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w16 >>> 26);
     w16 &= 0x3ffffff;
     /* k = 17 */
-    var w17 = c;
-    c = 0;
     lo = Math.imul(al9, bl8);
     mid = Math.imul(al9, bh8);
-    mid = (mid + Math.imul(ah9, bl8)) | 0;
+    mid += Math.imul(ah9, bl8);
     hi = Math.imul(ah9, bh8);
-    w17 = (w17 + lo) | 0;
-    w17 = (w17 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w17 >>> 26)) | 0;
-    w17 &= 0x3ffffff;
-    lo = Math.imul(al8, bl9);
-    mid = Math.imul(al8, bh9);
-    mid = (mid + Math.imul(ah8, bl9)) | 0;
-    hi = Math.imul(ah8, bh9);
-    w17 = (w17 + lo) | 0;
-    w17 = (w17 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w17 >>> 26)) | 0;
+    lo += Math.imul(al8, bl9);
+    mid += Math.imul(al8, bh9);
+    mid += Math.imul(ah8, bl9);
+    hi += Math.imul(ah8, bh9);
+    var w17 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w17 >>> 26);
     w17 &= 0x3ffffff;
     /* k = 18 */
-    var w18 = c;
-    c = 0;
     lo = Math.imul(al9, bl9);
     mid = Math.imul(al9, bh9);
-    mid = (mid + Math.imul(ah9, bl9)) | 0;
+    mid += Math.imul(ah9, bl9);
     hi = Math.imul(ah9, bh9);
-    w18 = (w18 + lo) | 0;
-    w18 = (w18 + ((mid & 0x1fff) << 13)) | 0;
-    c = (c + hi) | 0;
-    c = (c + (mid >>> 13)) | 0;
-    c = (c + (w18 >>> 26)) | 0;
+    var w18 = c + lo + ((mid & 0x1fff) << 13);
+    c = hi + (mid >>> 13) + (w18 >>> 26);
     w18 &= 0x3ffffff;
     o[0] = w0;
     o[1] = w1;
@@ -19487,6 +18886,7 @@ exports['1.3.132.0.35'] = 'p521'
 
   BN.prototype.imuln = function imuln (num) {
     assert(typeof num === 'number');
+    assert(num < 0x4000000);
 
     // Carry
     var carry = 0;
@@ -19718,6 +19118,7 @@ exports['1.3.132.0.35'] = 'p521'
   // Add plain number `num` to `this`
   BN.prototype.iaddn = function iaddn (num) {
     assert(typeof num === 'number');
+    assert(num < 0x4000000);
     if (num < 0) return this.isubn(-num);
 
     // Possible sign change
@@ -19758,6 +19159,7 @@ exports['1.3.132.0.35'] = 'p521'
   // Subtract plain number `num` from `this`
   BN.prototype.isubn = function isubn (num) {
     assert(typeof num === 'number');
+    assert(num < 0x4000000);
     if (num < 0) return this.iaddn(-num);
 
     if (this.negative !== 0) {
@@ -19935,8 +19337,8 @@ exports['1.3.132.0.35'] = 'p521'
 
       if (mode !== 'div') {
         mod = res.mod.neg();
-        if (positive && mod.neg) {
-          mod = mod.add(num);
+        if (positive && mod.negative !== 0) {
+          mod.iadd(num);
         }
       }
 
@@ -19961,8 +19363,8 @@ exports['1.3.132.0.35'] = 'p521'
 
       if (mode !== 'div') {
         mod = res.mod.neg();
-        if (positive && mod.neg) {
-          mod = mod.isub(num);
+        if (positive && mod.negative !== 0) {
+          mod.isub(num);
         }
       }
 
@@ -20095,25 +19497,31 @@ exports['1.3.132.0.35'] = 'p521'
     var xp = x.clone();
 
     while (!x.isZero()) {
-      while (x.isEven()) {
-        x.iushrn(1);
-        if (A.isEven() && B.isEven()) {
+      for (var i = 0, im = 1; (x.words[0] & im) === 0 && i < 26; ++i, im <<= 1);
+      if (i > 0) {
+        x.iushrn(i);
+        while (i-- > 0) {
+          if (A.isOdd() || B.isOdd()) {
+            A.iadd(yp);
+            B.isub(xp);
+          }
+
           A.iushrn(1);
           B.iushrn(1);
-        } else {
-          A.iadd(yp).iushrn(1);
-          B.isub(xp).iushrn(1);
         }
       }
 
-      while (y.isEven()) {
-        y.iushrn(1);
-        if (C.isEven() && D.isEven()) {
+      for (var j = 0, jm = 1; (y.words[0] & jm) === 0 && j < 26; ++j, jm <<= 1);
+      if (j > 0) {
+        y.iushrn(j);
+        while (j-- > 0) {
+          if (C.isOdd() || D.isOdd()) {
+            C.iadd(yp);
+            D.isub(xp);
+          }
+
           C.iushrn(1);
           D.iushrn(1);
-        } else {
-          C.iadd(yp).iushrn(1);
-          D.isub(xp).iushrn(1);
         }
       }
 
@@ -20157,22 +19565,30 @@ exports['1.3.132.0.35'] = 'p521'
     var delta = b.clone();
 
     while (a.cmpn(1) > 0 && b.cmpn(1) > 0) {
-      while (a.isEven()) {
-        a.iushrn(1);
-        if (x1.isEven()) {
+      for (var i = 0, im = 1; (a.words[0] & im) === 0 && i < 26; ++i, im <<= 1);
+      if (i > 0) {
+        a.iushrn(i);
+        while (i-- > 0) {
+          if (x1.isOdd()) {
+            x1.iadd(delta);
+          }
+
           x1.iushrn(1);
-        } else {
-          x1.iadd(delta).iushrn(1);
         }
       }
-      while (b.isEven()) {
-        b.iushrn(1);
-        if (x2.isEven()) {
+
+      for (var j = 0, jm = 1; (b.words[0] & jm) === 0 && j < 26; ++j, jm <<= 1);
+      if (j > 0) {
+        b.iushrn(j);
+        while (j-- > 0) {
+          if (x2.isOdd()) {
+            x2.iadd(delta);
+          }
+
           x2.iushrn(1);
-        } else {
-          x2.iadd(delta).iushrn(1);
         }
       }
+
       if (a.cmp(b) >= 0) {
         a.isub(b);
         x1.isub(x2);
@@ -20351,6 +19767,46 @@ exports['1.3.132.0.35'] = 'p521'
       break;
     }
     return res;
+  };
+
+  BN.prototype.gtn = function gtn (num) {
+    return this.cmpn(num) === 1;
+  };
+
+  BN.prototype.gt = function gt (num) {
+    return this.cmp(num) === 1;
+  };
+
+  BN.prototype.gten = function gten (num) {
+    return this.cmpn(num) >= 0;
+  };
+
+  BN.prototype.gte = function gte (num) {
+    return this.cmp(num) >= 0;
+  };
+
+  BN.prototype.ltn = function ltn (num) {
+    return this.cmpn(num) === -1;
+  };
+
+  BN.prototype.lt = function lt (num) {
+    return this.cmp(num) === -1;
+  };
+
+  BN.prototype.lten = function lten (num) {
+    return this.cmpn(num) <= 0;
+  };
+
+  BN.prototype.lte = function lte (num) {
+    return this.cmp(num) <= 0;
+  };
+
+  BN.prototype.eqn = function eqn (num) {
+    return this.cmpn(num) === 0;
+  };
+
+  BN.prototype.eq = function eq (num) {
+    return this.cmp(num) === 0;
   };
 
   //
@@ -20549,8 +20005,13 @@ exports['1.3.132.0.35'] = 'p521'
       input.words[i - 10] = ((next & mask) << 4) | (prev >>> 22);
       prev = next;
     }
-    input.words[i - 10] = prev >>> 22;
-    input.length -= 9;
+    prev >>>= 22;
+    input.words[i - 10] = prev;
+    if (prev === 0 && input.length > 10) {
+      input.length -= 10;
+    } else {
+      input.length -= 9;
+    }
   };
 
   K256.prototype.imulK = function imulK (num) {
@@ -20560,18 +20021,12 @@ exports['1.3.132.0.35'] = 'p521'
     num.length += 2;
 
     // bounded at: 0x40 * 0x3ffffff + 0x3d0 = 0x100000390
-    var hi;
     var lo = 0;
     for (var i = 0; i < num.length; i++) {
       var w = num.words[i] | 0;
-      hi = w * 0x40;
       lo += w * 0x3d1;
-      hi += (lo / 0x4000000) | 0;
-      lo &= 0x3ffffff;
-
-      num.words[i] = lo;
-
-      lo = hi;
+      num.words[i] = lo & 0x3ffffff;
+      lo = w * 0x40 + ((lo / 0x4000000) | 0);
     }
 
     // Fast length reduction
@@ -20679,9 +20134,11 @@ exports['1.3.132.0.35'] = 'p521'
   };
 
   Red.prototype.neg = function neg (a) {
-    var r = a.clone();
-    r.negative ^= 1;
-    return r.iadd(this.m)._forceRed(this);
+    if (a.isZero()) {
+      return a.clone();
+    }
+
+    return this.m.sub(a)._forceRed(this);
   };
 
   Red.prototype.add = function add (a, b) {
@@ -20740,7 +20197,7 @@ exports['1.3.132.0.35'] = 'p521'
   };
 
   Red.prototype.isqr = function isqr (a) {
-    return this.imul(a, a);
+    return this.imul(a, a.clone());
   };
 
   Red.prototype.sqr = function sqr (a) {
@@ -21017,7 +20474,7 @@ elliptic.eddsa = require('./elliptic/eddsa');
 },{"../package.json":70,"./elliptic/curve":50,"./elliptic/curves":53,"./elliptic/ec":54,"./elliptic/eddsa":57,"./elliptic/hmac-drbg":60,"./elliptic/utils":62,"brorand":63}],48:[function(require,module,exports){
 'use strict';
 
-var bn = require('bn.js');
+var BN = require('bn.js');
 var elliptic = require('../../elliptic');
 var utils = elliptic.utils;
 var getNAF = utils.getNAF;
@@ -21026,18 +20483,18 @@ var assert = utils.assert;
 
 function BaseCurve(type, conf) {
   this.type = type;
-  this.p = new bn(conf.p, 16);
+  this.p = new BN(conf.p, 16);
 
   // Use Montgomery, when there is no fast reduction for the prime
-  this.red = conf.prime ? bn.red(conf.prime) : bn.mont(this.p);
+  this.red = conf.prime ? BN.red(conf.prime) : BN.mont(this.p);
 
   // Useful for many curves
-  this.zero = new bn(0).toRed(this.red);
-  this.one = new bn(1).toRed(this.red);
-  this.two = new bn(2).toRed(this.red);
+  this.zero = new BN(0).toRed(this.red);
+  this.one = new BN(1).toRed(this.red);
+  this.two = new BN(2).toRed(this.red);
 
   // Curve configuration, optional
-  this.n = conf.n && new bn(conf.n, 16);
+  this.n = conf.n && new BN(conf.n, 16);
   this.g = conf.g && this.pointFromJSON(conf.g, conf.gRed);
 
   // Temporary arrays
@@ -21372,7 +20829,7 @@ BasePoint.prototype.dblp = function dblp(k) {
 
 var curve = require('../curve');
 var elliptic = require('../../elliptic');
-var bn = require('bn.js');
+var BN = require('bn.js');
 var inherits = require('inherits');
 var Base = curve.base;
 
@@ -21386,11 +20843,11 @@ function EdwardsCurve(conf) {
 
   Base.call(this, 'edwards', conf);
 
-  this.a = new bn(conf.a, 16).umod(this.red.m);
+  this.a = new BN(conf.a, 16).umod(this.red.m);
   this.a = this.a.toRed(this.red);
-  this.c = new bn(conf.c, 16).toRed(this.red);
+  this.c = new BN(conf.c, 16).toRed(this.red);
   this.c2 = this.c.redSqr();
-  this.d = new bn(conf.d, 16).toRed(this.red);
+  this.d = new BN(conf.d, 16).toRed(this.red);
   this.dd = this.d.redAdd(this.d);
 
   assert(!this.twisted || this.c.fromRed().cmpn(1) === 0);
@@ -21419,7 +20876,7 @@ EdwardsCurve.prototype.jpoint = function jpoint(x, y, z, t) {
 };
 
 EdwardsCurve.prototype.pointFromX = function pointFromX(x, odd) {
-  x = new bn(x, 16);
+  x = new BN(x, 16);
   if (!x.red)
     x = x.toRed(this.red);
 
@@ -21427,7 +20884,11 @@ EdwardsCurve.prototype.pointFromX = function pointFromX(x, odd) {
   var rhs = this.c2.redSub(this.a.redMul(x2));
   var lhs = this.one.redSub(this.c2.redMul(this.d).redMul(x2));
 
-  var y = rhs.redMul(lhs.redInvm()).redSqrt();
+  var y2 = rhs.redMul(lhs.redInvm());
+  var y = y2.redSqrt();
+  if (y.redSqr().redSub(y2).cmp(this.zero) !== 0)
+    throw new Error('invalid point');
+
   var isOdd = y.fromRed().isOdd();
   if (odd && !isOdd || !odd && isOdd)
     y = y.redNeg();
@@ -21436,7 +20897,7 @@ EdwardsCurve.prototype.pointFromX = function pointFromX(x, odd) {
 };
 
 EdwardsCurve.prototype.pointFromY = function pointFromY(y, odd) {
-  y = new bn(y, 16);
+  y = new BN(y, 16);
   if (!y.red)
     y = y.toRed(this.red);
 
@@ -21487,10 +20948,10 @@ function Point(curve, x, y, z, t) {
     this.t = this.curve.zero;
     this.zOne = true;
   } else {
-    this.x = new bn(x, 16);
-    this.y = new bn(y, 16);
-    this.z = z ? new bn(z, 16) : this.curve.one;
-    this.t = t && new bn(t, 16);
+    this.x = new BN(x, 16);
+    this.y = new BN(y, 16);
+    this.z = z ? new BN(z, 16) : this.curve.one;
+    this.t = t && new BN(t, 16);
     if (!this.x.red)
       this.x = this.x.toRed(this.curve.red);
     if (!this.y.red)
@@ -21789,7 +21250,7 @@ curve.edwards = require('./edwards');
 'use strict';
 
 var curve = require('../curve');
-var bn = require('bn.js');
+var BN = require('bn.js');
 var inherits = require('inherits');
 var Base = curve.base;
 
@@ -21799,10 +21260,10 @@ var utils = elliptic.utils;
 function MontCurve(conf) {
   Base.call(this, 'mont', conf);
 
-  this.a = new bn(conf.a, 16).toRed(this.red);
-  this.b = new bn(conf.b, 16).toRed(this.red);
-  this.i4 = new bn(4).toRed(this.red).redInvm();
-  this.two = new bn(2).toRed(this.red);
+  this.a = new BN(conf.a, 16).toRed(this.red);
+  this.b = new BN(conf.b, 16).toRed(this.red);
+  this.i4 = new BN(4).toRed(this.red).redInvm();
+  this.two = new BN(2).toRed(this.red);
   this.a24 = this.i4.redMul(this.a.redAdd(this.two));
 }
 inherits(MontCurve, Base);
@@ -21823,8 +21284,8 @@ function Point(curve, x, z) {
     this.x = this.curve.one;
     this.z = this.curve.zero;
   } else {
-    this.x = new bn(x, 16);
-    this.z = new bn(z, 16);
+    this.x = new BN(x, 16);
+    this.z = new BN(z, 16);
     if (!this.x.red)
       this.x = this.x.toRed(this.curve.red);
     if (!this.z.red)
@@ -21968,7 +21429,7 @@ Point.prototype.getX = function getX() {
 
 var curve = require('../curve');
 var elliptic = require('../../elliptic');
-var bn = require('bn.js');
+var BN = require('bn.js');
 var inherits = require('inherits');
 var Base = curve.base;
 
@@ -21977,8 +21438,8 @@ var assert = elliptic.utils.assert;
 function ShortCurve(conf) {
   Base.call(this, 'short', conf);
 
-  this.a = new bn(conf.a, 16).toRed(this.red);
-  this.b = new bn(conf.b, 16).toRed(this.red);
+  this.a = new BN(conf.a, 16).toRed(this.red);
+  this.b = new BN(conf.b, 16).toRed(this.red);
   this.tinv = this.two.redInvm();
 
   this.zeroA = this.a.fromRed().cmpn(0) === 0;
@@ -22001,7 +21462,7 @@ ShortCurve.prototype._getEndomorphism = function _getEndomorphism(conf) {
   var beta;
   var lambda;
   if (conf.beta) {
-    beta = new bn(conf.beta, 16).toRed(this.red);
+    beta = new BN(conf.beta, 16).toRed(this.red);
   } else {
     var betas = this._getEndoRoots(this.p);
     // Choose the smallest beta
@@ -22009,7 +21470,7 @@ ShortCurve.prototype._getEndomorphism = function _getEndomorphism(conf) {
     beta = beta.toRed(this.red);
   }
   if (conf.lambda) {
-    lambda = new bn(conf.lambda, 16);
+    lambda = new BN(conf.lambda, 16);
   } else {
     // Choose the lambda that is matching selected beta
     var lambdas = this._getEndoRoots(this.n);
@@ -22026,8 +21487,8 @@ ShortCurve.prototype._getEndomorphism = function _getEndomorphism(conf) {
   if (conf.basis) {
     basis = conf.basis.map(function(vec) {
       return {
-        a: new bn(vec.a, 16),
-        b: new bn(vec.b, 16)
+        a: new BN(vec.a, 16),
+        b: new BN(vec.b, 16)
       };
     });
   } else {
@@ -22045,11 +21506,11 @@ ShortCurve.prototype._getEndoRoots = function _getEndoRoots(num) {
   // Find roots of for x^2 + x + 1 in F
   // Root = (-1 +- Sqrt(-3)) / 2
   //
-  var red = num === this.p ? this.red : bn.mont(num);
-  var tinv = new bn(2).toRed(red).redInvm();
+  var red = num === this.p ? this.red : BN.mont(num);
+  var tinv = new BN(2).toRed(red).redInvm();
   var ntinv = tinv.redNeg();
 
-  var s = new bn(3).toRed(red).redNeg().redSqrt().redMul(tinv);
+  var s = new BN(3).toRed(red).redNeg().redSqrt().redMul(tinv);
 
   var l1 = ntinv.redAdd(s).fromRed();
   var l2 = ntinv.redSub(s).fromRed();
@@ -22064,10 +21525,10 @@ ShortCurve.prototype._getEndoBasis = function _getEndoBasis(lambda) {
   // Run EGCD, until r(L + 1) < aprxSqrt
   var u = lambda;
   var v = this.n.clone();
-  var x1 = new bn(1);
-  var y1 = new bn(0);
-  var x2 = new bn(0);
-  var y2 = new bn(1);
+  var x1 = new BN(1);
+  var y1 = new BN(0);
+  var x2 = new BN(0);
+  var y2 = new BN(1);
 
   // NOTE: all vectors are roots of: a + b * lambda = 0 (mod n)
   var a0;
@@ -22152,12 +21613,14 @@ ShortCurve.prototype._endoSplit = function _endoSplit(k) {
 };
 
 ShortCurve.prototype.pointFromX = function pointFromX(x, odd) {
-  x = new bn(x, 16);
+  x = new BN(x, 16);
   if (!x.red)
     x = x.toRed(this.red);
 
   var y2 = x.redSqr().redMul(x).redIAdd(x.redMul(this.a)).redIAdd(this.b);
   var y = y2.redSqrt();
+  if (y.redSqr().redSub(y2).cmp(this.zero) !== 0)
+    throw new Error('invalid point');
 
   // XXX Is there any way to tell if the number is odd without converting it
   // to non-red form?
@@ -22220,8 +21683,8 @@ function Point(curve, x, y, isRed) {
     this.y = null;
     this.inf = true;
   } else {
-    this.x = new bn(x, 16);
-    this.y = new bn(y, 16);
+    this.x = new BN(x, 16);
+    this.y = new BN(y, 16);
     // Force redgomery representation when loading from JSON
     if (isRed) {
       this.x.forceRed(this.curve.red);
@@ -22385,7 +21848,7 @@ Point.prototype.getY = function getY() {
 };
 
 Point.prototype.mul = function mul(k) {
-  k = new bn(k, 16);
+  k = new BN(k, 16);
 
   if (this._hasDoubles(k))
     return this.curve._fixedNafMul(this, k);
@@ -22447,11 +21910,11 @@ function JPoint(curve, x, y, z) {
   if (x === null && y === null && z === null) {
     this.x = this.curve.one;
     this.y = this.curve.one;
-    this.z = new bn(0);
+    this.z = new BN(0);
   } else {
-    this.x = new bn(x, 16);
-    this.y = new bn(y, 16);
-    this.z = new bn(z, 16);
+    this.x = new BN(x, 16);
+    this.y = new BN(y, 16);
+    this.z = new BN(z, 16);
   }
   if (!this.x.red)
     this.x = this.x.toRed(this.curve.red);
@@ -22835,7 +22298,7 @@ JPoint.prototype.trpl = function trpl() {
 };
 
 JPoint.prototype.mul = function mul(k, kbase) {
-  k = new bn(k, kbase);
+  k = new BN(k, kbase);
 
   return this.curve._wnafMul(this, k);
 };
@@ -23082,7 +22545,7 @@ defineCurve('secp256k1', {
 },{"../elliptic":47,"./precomputed/secp256k1":61,"hash.js":64}],54:[function(require,module,exports){
 'use strict';
 
-var bn = require('bn.js');
+var BN = require('bn.js');
 var elliptic = require('../../elliptic');
 var utils = elliptic.utils;
 var assert = utils.assert;
@@ -23144,9 +22607,9 @@ EC.prototype.genKeyPair = function genKeyPair(options) {
   });
 
   var bytes = this.n.byteLength();
-  var ns2 = this.n.sub(new bn(2));
+  var ns2 = this.n.sub(new BN(2));
   do {
-    var priv = new bn(drbg.generate(bytes));
+    var priv = new BN(drbg.generate(bytes));
     if (priv.cmp(ns2) > 0)
       continue;
 
@@ -23174,30 +22637,31 @@ EC.prototype.sign = function sign(msg, key, enc, options) {
     options = {};
 
   key = this.keyFromPrivate(key, enc);
-  msg = this._truncateToN(new bn(msg, 16));
+  msg = this._truncateToN(new BN(msg, 16));
 
   // Zero-extend key to provide enough entropy
   var bytes = this.n.byteLength();
-  var bkey = key.getPrivate().toArray();
-  for (var i = bkey.length; i < bytes; i++)
-    bkey.unshift(0);
+  var bkey = key.getPrivate().toArray('be', bytes);
 
   // Zero-extend nonce to have the same byte size as N
-  var nonce = msg.toArray();
-  for (var i = nonce.length; i < bytes; i++)
-    nonce.unshift(0);
+  var nonce = msg.toArray('be', bytes);
 
   // Instantiate Hmac_DRBG
   var drbg = new elliptic.hmacDRBG({
     hash: this.hash,
     entropy: bkey,
-    nonce: nonce
+    nonce: nonce,
+    pers: options.pers,
+    persEnc: options.persEnc
   });
 
   // Number of bytes to generate
-  var ns1 = this.n.sub(new bn(1));
-  do {
-    var k = new bn(drbg.generate(this.n.byteLength()));
+  var ns1 = this.n.sub(new BN(1));
+
+  for (var iter = 0; true; iter++) {
+    var k = options.k ?
+        options.k(iter) :
+        new BN(drbg.generate(this.n.byteLength()));
     k = this._truncateToN(k, true);
     if (k.cmpn(1) <= 0 || k.cmp(ns1) >= 0)
       continue;
@@ -23226,11 +22690,11 @@ EC.prototype.sign = function sign(msg, key, enc, options) {
     }
 
     return new Signature({ r: r, s: s, recoveryParam: recoveryParam });
-  } while (true);
+  }
 };
 
 EC.prototype.verify = function verify(msg, signature, key, enc) {
-  msg = this._truncateToN(new bn(msg, 16));
+  msg = this._truncateToN(new BN(msg, 16));
   key = this.keyFromPublic(key, enc);
   signature = new Signature(signature, 'hex');
 
@@ -23259,7 +22723,7 @@ EC.prototype.recoverPubKey = function(msg, signature, j, enc) {
   signature = new Signature(signature, enc);
 
   var n = this.n;
-  var e = new bn(msg);
+  var e = new BN(msg);
   var r = signature.r;
   var s = signature.s;
 
@@ -23280,7 +22744,7 @@ EC.prototype.recoverPubKey = function(msg, signature, j, enc) {
   // 1.6.1 Compute Q = r^-1 (sR -  eG)
   //               Q = r^-1 (sR + -eG)
   var rInv = signature.r.invm(n);
-  return r.mul(s).add(this.g.mul(eNeg)).mul(rInv);
+  return this.g.mulAdd(eNeg, r, s).mul(rInv);
 };
 
 EC.prototype.getKeyRecoveryParam = function(e, signature, Q, enc) {
@@ -23289,7 +22753,12 @@ EC.prototype.getKeyRecoveryParam = function(e, signature, Q, enc) {
     return signature.recoveryParam;
 
   for (var i = 0; i < 4; i++) {
-    var Qprime = this.recoverPubKey(e, signature, i);
+    var Qprime;
+    try {
+      Qprime = this.recoverPubKey(e, signature, i);
+    } catch (e) {
+      continue;
+    }
 
     if (Qprime.eq(Q))
       return i;
@@ -23300,7 +22769,7 @@ EC.prototype.getKeyRecoveryParam = function(e, signature, Q, enc) {
 },{"../../elliptic":47,"./key":55,"./signature":56,"bn.js":45}],55:[function(require,module,exports){
 'use strict';
 
-var bn = require('bn.js');
+var BN = require('bn.js');
 
 function KeyPair(ec, options) {
   this.ec = ec;
@@ -23372,7 +22841,7 @@ KeyPair.prototype.getPrivate = function getPrivate(enc) {
 };
 
 KeyPair.prototype._importPrivate = function _importPrivate(key, enc) {
-  this.priv = new bn(key, enc || 16);
+  this.priv = new BN(key, enc || 16);
 
   // Ensure that the priv won't be bigger than n, otherwise we may fail
   // in fixed multiplication method
@@ -23409,7 +22878,7 @@ KeyPair.prototype.inspect = function inspect() {
 },{"bn.js":45}],56:[function(require,module,exports){
 'use strict';
 
-var bn = require('bn.js');
+var BN = require('bn.js');
 
 var elliptic = require('../../elliptic');
 var utils = elliptic.utils;
@@ -23423,12 +22892,12 @@ function Signature(options, enc) {
     return;
 
   assert(options.r && options.s, 'Signature without r or s');
-  this.r = new bn(options.r, 16);
-  this.s = new bn(options.s, 16);
-  if (options.recoveryParam !== null)
-    this.recoveryParam = options.recoveryParam;
-  else
+  this.r = new BN(options.r, 16);
+  this.s = new BN(options.s, 16);
+  if (options.recoveryParam === undefined)
     this.recoveryParam = null;
+  else
+    this.recoveryParam = options.recoveryParam;
 }
 module.exports = Signature;
 
@@ -23494,8 +22963,8 @@ Signature.prototype._importDER = function _importDER(data, enc) {
     s = s.slice(1);
   }
 
-  this.r = new bn(r);
-  this.s = new bn(s);
+  this.r = new BN(r);
+  this.s = new BN(s);
   this.recoveryParam = null;
 
   return true;
@@ -23764,7 +23233,7 @@ module.exports = KeyPair;
 },{"../../elliptic":47}],59:[function(require,module,exports){
 'use strict';
 
-var bn = require('bn.js');
+var BN = require('bn.js');
 var elliptic = require('../../elliptic');
 var utils = elliptic.utils;
 var assert = utils.assert;
@@ -23796,7 +23265,7 @@ function Signature(eddsa, sig) {
 
   if (eddsa.isPoint(sig.R))
     this._R = sig.R;
-  if (sig.S instanceof bn)
+  if (sig.S instanceof BN)
     this._S = sig.S;
 
   this._Rencoded = Array.isArray(sig.R) ? sig.R : sig.Rencoded;
@@ -24731,7 +24200,7 @@ module.exports = {
 'use strict';
 
 var utils = exports;
-var bn = require('bn.js');
+var BN = require('bn.js');
 
 utils.assert = function assert(val, msg) {
   if (!val)
@@ -24897,7 +24366,7 @@ function parseBytes(bytes) {
 utils.parseBytes = parseBytes;
 
 function intFromLE(bytes) {
-  return new bn(bytes, 'hex', 'le');
+  return new BN(bytes, 'hex', 'le');
 }
 utils.intFromLE = intFromLE;
 
@@ -26095,15 +25564,20 @@ exports.shr64_lo = shr64_lo;
 },{"inherits":205}],70:[function(require,module,exports){
 module.exports={
   "name": "elliptic",
-  "version": "6.0.2",
+  "version": "6.2.3",
   "description": "EC cryptography",
   "main": "lib/elliptic.js",
   "files": [
     "lib"
   ],
   "scripts": {
-    "test": "make lint && istanbul test _mocha --reporter=spec test/*-test.js",
-    "coveralls": "cat ./coverage/lcov.info | coveralls"
+    "coverage": "npm run unit --coverage",
+    "coveralls": "npm run coverage && cat ./coverage/lcov.info | coveralls",
+    "jscs": "jscs benchmarks/*.js lib/*.js lib/**/*.js lib/**/**/*.js test/*.js",
+    "jshint": "jscs benchmarks/*.js lib/*.js lib/**/*.js lib/**/**/*.js test/*.js",
+    "lint": "npm run jscs && npm run jshint",
+    "test": "npm run lint && npm run unit",
+    "unit": "istanbul test _mocha --reporter=spec test/*-test.js"
   },
   "repository": {
     "type": "git",
@@ -26125,13 +25599,11 @@ module.exports={
   },
   "homepage": "https://github.com/indutny/elliptic",
   "devDependencies": {
-    "browserify": "^3.44.2",
     "coveralls": "^2.11.3",
-    "istanbul": "^0.3.17",
-    "jscs": "^1.11.3",
+    "istanbul": "^0.4.2",
+    "jscs": "^2.9.0",
     "jshint": "^2.6.0",
-    "mocha": "^2.1.0",
-    "uglify-js": "^2.4.13"
+    "mocha": "^2.1.0"
   },
   "dependencies": {
     "bn.js": "^4.0.0",
@@ -26139,19 +25611,19 @@ module.exports={
     "hash.js": "^1.0.0",
     "inherits": "^2.0.1"
   },
-  "gitHead": "330106da186712d228d79bc71ae8e7e68565fa9d",
-  "_id": "elliptic@6.0.2",
-  "_shasum": "219b96cd92aa9885d91d31c1fd42eaa5eb4483a9",
+  "gitHead": "c32f20b22b420eb6af3c6dda28963deb7facf823",
+  "_id": "elliptic@6.2.3",
+  "_shasum": "18e46d7306b0951275a2d42063270a14b74ebe99",
   "_from": "elliptic@>=6.0.0 <7.0.0",
-  "_npmVersion": "3.3.6",
-  "_nodeVersion": "5.0.0",
+  "_npmVersion": "3.3.12",
+  "_nodeVersion": "5.4.1",
   "_npmUser": {
     "name": "indutny",
     "email": "fedor@indutny.com"
   },
   "dist": {
-    "shasum": "219b96cd92aa9885d91d31c1fd42eaa5eb4483a9",
-    "tarball": "http://registry.npmjs.org/elliptic/-/elliptic-6.0.2.tgz"
+    "shasum": "18e46d7306b0951275a2d42063270a14b74ebe99",
+    "tarball": "http://registry.npmjs.org/elliptic/-/elliptic-6.2.3.tgz"
   },
   "maintainers": [
     {
@@ -26160,7 +25632,7 @@ module.exports={
     }
   ],
   "directories": {},
-  "_resolved": "https://registry.npmjs.org/elliptic/-/elliptic-6.0.2.tgz",
+  "_resolved": "https://registry.npmjs.org/elliptic/-/elliptic-6.2.3.tgz",
   "readme": "ERROR: No README data found!"
 }
 
@@ -26637,6 +26109,7 @@ base.Node = require('./node');
 },{"./buffer":77,"./node":79,"./reporter":80}],79:[function(require,module,exports){
 var Reporter = require('../base').Reporter;
 var EncoderBuffer = require('../base').EncoderBuffer;
+var DecoderBuffer = require('../base').DecoderBuffer;
 var assert = require('minimalistic-assert');
 
 // Supported tags
@@ -26649,7 +26122,7 @@ var tags = [
 // Public methods list
 var methods = [
   'key', 'obj', 'use', 'optional', 'explicit', 'implicit', 'def', 'choice',
-  'any'
+  'any', 'contains'
 ].concat(tags);
 
 // Overrided methods list
@@ -26685,6 +26158,7 @@ function Node(enc, parent) {
   state['default'] = null;
   state.explicit = null;
   state.implicit = null;
+  state.contains = null;
 
   // Should create new instance on each method
   if (!state.parent) {
@@ -26889,6 +26363,15 @@ Node.prototype.choice = function choice(obj) {
   return this;
 };
 
+Node.prototype.contains = function contains(item) {
+  var state = this._baseState;
+
+  assert(state.use === null);
+  state.contains = item;
+
+  return this;
+};
+
 //
 // Decoding
 //
@@ -26990,6 +26473,12 @@ Node.prototype._decode = function decode(input) {
       });
       if (fail)
         return err;
+    }
+
+    // Decode contained/encoded by schema, only in bit or octet strings
+    if (state.contains && (state.tag === 'octstr' || state.tag === 'bitstr')) {
+      var data = new DecoderBuffer(result);
+      result = this._getUse(state.contains, input._reporterState.obj)._decode(data);
     }
   }
 
@@ -27134,6 +26623,9 @@ Node.prototype._encodeValue = function encode(data, reporter, parent) {
     result = this._createEncoderBuffer(data);
   } else if (state.choice) {
     result = this._encodeChoice(data, reporter);
+  } else if (state.contains) {
+    content = this._getUse(state.contains, parent)._encode(data, reporter);
+    primitive = true;
   } else if (state.children) {
     content = state.children.map(function(child) {
       if (child._baseState.tag === 'null_')
@@ -27153,7 +26645,6 @@ Node.prototype._encodeValue = function encode(data, reporter, parent) {
     }, this).filter(function(child) {
       return child;
     });
-
     content = this._createEncoderBuffer(content);
   } else {
     if (state.tag === 'seqof' || state.tag === 'setof') {
@@ -27246,6 +26737,7 @@ Node.prototype._isNumstr = function isNumstr(str) {
 Node.prototype._isPrintstr = function isPrintstr(str) {
   return /^[A-Za-z0-9 '\(\)\+,\-\.\/:=\?]*$/.test(str);
 };
+
 },{"../base":78,"minimalistic-assert":89}],80:[function(require,module,exports){
 var inherits = require('inherits');
 
@@ -27583,6 +27075,7 @@ DERNode.prototype._decodeStr = function decodeStr(buffer, tag) {
 };
 
 DERNode.prototype._decodeObjid = function decodeObjid(buffer, values, relative) {
+  var result;
   var identifiers = [];
   var ident = 0;
   while (!buffer.isEmpty()) {
@@ -27605,8 +27098,13 @@ DERNode.prototype._decodeObjid = function decodeObjid(buffer, values, relative) 
   else
     result = [first, second].concat(identifiers.slice(1));
 
-  if (values)
-    result = values[result.join(' ')];
+  if (values) {
+    var tmp = values[result.join(' ')];
+    if (tmp === undefined)
+      tmp = values[result.join('.')];
+    if (tmp !== undefined)
+      result = tmp;
+  }
 
   return result;
 };
@@ -29998,49 +29496,51 @@ module.exports = function createHmac(alg, key) {
 }).call(this,require("buffer").Buffer)
 },{"buffer":8,"create-hash/browser":136,"inherits":205,"stream":221}],150:[function(require,module,exports){
 (function (Buffer){
-var generatePrime = require('./lib/generatePrime');
-var primes = require('./lib/primes');
+var generatePrime = require('./lib/generatePrime')
+var primes = require('./lib/primes.json')
 
-var DH = require('./lib/dh');
+var DH = require('./lib/dh')
 
-function getDiffieHellman(mod) {
-  var prime = new Buffer(primes[mod].prime, 'hex');
-  var gen = new Buffer(primes[mod].gen, 'hex');
+function getDiffieHellman (mod) {
+  var prime = new Buffer(primes[mod].prime, 'hex')
+  var gen = new Buffer(primes[mod].gen, 'hex')
 
-  return new DH(prime, gen);
+  return new DH(prime, gen)
 }
 
-function createDiffieHellman(prime, enc, generator, genc) {
-  if (Buffer.isBuffer(enc) || (typeof enc === 'string' && ['hex', 'binary', 'base64'].indexOf(enc) === -1)) {
-    genc = generator;
-    generator = enc;
-    enc = undefined;
+var ENCODINGS = {
+  'binary': true, 'hex': true, 'base64': true
+}
+
+function createDiffieHellman (prime, enc, generator, genc) {
+  if (Buffer.isBuffer(enc) || ENCODINGS[enc] === undefined) {
+    return createDiffieHellman(prime, 'binary', enc, generator)
   }
 
-  enc = enc || 'binary';
-  genc = genc || 'binary';
-  generator = generator || new Buffer([2]);
+  enc = enc || 'binary'
+  genc = genc || 'binary'
+  generator = generator || new Buffer([2])
 
   if (!Buffer.isBuffer(generator)) {
-    generator = new Buffer(generator, genc);
+    generator = new Buffer(generator, genc)
   }
 
   if (typeof prime === 'number') {
-    return new DH(generatePrime(prime, generator), generator, true);
+    return new DH(generatePrime(prime, generator), generator, true)
   }
 
   if (!Buffer.isBuffer(prime)) {
-    prime = new Buffer(prime, enc);
+    prime = new Buffer(prime, enc)
   }
 
-  return new DH(prime, generator, true);
+  return new DH(prime, generator, true)
 }
 
-exports.DiffieHellmanGroup = exports.createDiffieHellmanGroup = exports.getDiffieHellman = getDiffieHellman;
-exports.createDiffieHellman = exports.DiffieHellman = createDiffieHellman;
+exports.DiffieHellmanGroup = exports.createDiffieHellmanGroup = exports.getDiffieHellman = getDiffieHellman
+exports.createDiffieHellman = exports.DiffieHellman = createDiffieHellman
 
 }).call(this,require("buffer").Buffer)
-},{"./lib/dh":151,"./lib/generatePrime":152,"./lib/primes":153,"buffer":8}],151:[function(require,module,exports){
+},{"./lib/dh":151,"./lib/generatePrime":152,"./lib/primes.json":153,"buffer":8}],151:[function(require,module,exports){
 (function (Buffer){
 var BN = require('bn.js');
 var MillerRabin = require('miller-rabin');
@@ -30894,33 +30394,40 @@ module.exports = function xor(a, b) {
 };
 },{}],203:[function(require,module,exports){
 (function (process,global,Buffer){
-'use strict';
+'use strict'
+
+function oldBrowser () {
+  throw new Error('secure random number generation not supported by this browser\nuse chrome, FireFox or Internet Explorer 11')
+}
 
 var crypto = global.crypto || global.msCrypto
-if(crypto && crypto.getRandomValues) {
-  module.exports = randomBytes;
-} else {
-  module.exports = oldBrowser;
-}
-function randomBytes(size, cb) {
-  var bytes = new Buffer(size); //in browserify, this is an extended Uint8Array
-    /* This will not work in older browsers.
-     * See https://developer.mozilla.org/en-US/docs/Web/API/window.crypto.getRandomValues
-     */
 
-  crypto.getRandomValues(bytes);
+if (crypto && crypto.getRandomValues) {
+  module.exports = randomBytes
+} else {
+  module.exports = oldBrowser
+}
+
+function randomBytes (size, cb) {
+  // phantomjs needs to throw
+  if (size > 65536) throw new Error('requested too many random bytes')
+  // in case browserify  isn't using the Uint8Array version
+  var rawBytes = new global.Uint8Array(size)
+
+  // This will not work in older browsers.
+  // See https://developer.mozilla.org/en-US/docs/Web/API/window.crypto.getRandomValues
+  crypto.getRandomValues(rawBytes)
+
+  // phantomjs doesn't like a buffer being passed here
+  var bytes = new Buffer(rawBytes.buffer)
+
   if (typeof cb === 'function') {
     return process.nextTick(function () {
-      cb(null, bytes);
-    });
+      cb(null, bytes)
+    })
   }
-  return bytes;
-}
-function oldBrowser() {
-  throw new Error(
-      'secure random number generation not supported by this browser\n'+
-      'use chrome, FireFox or Internet Explorer 11'
-    )
+
+  return bytes
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
@@ -34620,14 +34127,947 @@ module.exports = function(arr, obj){
 },{}],227:[function(require,module,exports){
 arguments[4][47][0].apply(exports,arguments)
 },{"../package.json":252,"./elliptic/curve":230,"./elliptic/curves":233,"./elliptic/ec":234,"./elliptic/eddsa":237,"./elliptic/hmac-drbg":240,"./elliptic/utils":242,"brorand":244,"dup":47}],228:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"../../elliptic":227,"bn.js":243,"dup":48}],229:[function(require,module,exports){
-arguments[4][49][0].apply(exports,arguments)
-},{"../../elliptic":227,"../curve":230,"bn.js":243,"dup":49,"inherits":251}],230:[function(require,module,exports){
+'use strict';
+
+var bn = require('bn.js');
+var elliptic = require('../../elliptic');
+var utils = elliptic.utils;
+var getNAF = utils.getNAF;
+var getJSF = utils.getJSF;
+var assert = utils.assert;
+
+function BaseCurve(type, conf) {
+  this.type = type;
+  this.p = new bn(conf.p, 16);
+
+  // Use Montgomery, when there is no fast reduction for the prime
+  this.red = conf.prime ? bn.red(conf.prime) : bn.mont(this.p);
+
+  // Useful for many curves
+  this.zero = new bn(0).toRed(this.red);
+  this.one = new bn(1).toRed(this.red);
+  this.two = new bn(2).toRed(this.red);
+
+  // Curve configuration, optional
+  this.n = conf.n && new bn(conf.n, 16);
+  this.g = conf.g && this.pointFromJSON(conf.g, conf.gRed);
+
+  // Temporary arrays
+  this._wnafT1 = new Array(4);
+  this._wnafT2 = new Array(4);
+  this._wnafT3 = new Array(4);
+  this._wnafT4 = new Array(4);
+}
+module.exports = BaseCurve;
+
+BaseCurve.prototype.point = function point() {
+  throw new Error('Not implemented');
+};
+
+BaseCurve.prototype.validate = function validate() {
+  throw new Error('Not implemented');
+};
+
+BaseCurve.prototype._fixedNafMul = function _fixedNafMul(p, k) {
+  assert(p.precomputed);
+  var doubles = p._getDoubles();
+
+  var naf = getNAF(k, 1);
+  var I = (1 << (doubles.step + 1)) - (doubles.step % 2 === 0 ? 2 : 1);
+  I /= 3;
+
+  // Translate into more windowed form
+  var repr = [];
+  for (var j = 0; j < naf.length; j += doubles.step) {
+    var nafW = 0;
+    for (var k = j + doubles.step - 1; k >= j; k--)
+      nafW = (nafW << 1) + naf[k];
+    repr.push(nafW);
+  }
+
+  var a = this.jpoint(null, null, null);
+  var b = this.jpoint(null, null, null);
+  for (var i = I; i > 0; i--) {
+    for (var j = 0; j < repr.length; j++) {
+      var nafW = repr[j];
+      if (nafW === i)
+        b = b.mixedAdd(doubles.points[j]);
+      else if (nafW === -i)
+        b = b.mixedAdd(doubles.points[j].neg());
+    }
+    a = a.add(b);
+  }
+  return a.toP();
+};
+
+BaseCurve.prototype._wnafMul = function _wnafMul(p, k) {
+  var w = 4;
+
+  // Precompute window
+  var nafPoints = p._getNAFPoints(w);
+  w = nafPoints.wnd;
+  var wnd = nafPoints.points;
+
+  // Get NAF form
+  var naf = getNAF(k, w);
+
+  // Add `this`*(N+1) for every w-NAF index
+  var acc = this.jpoint(null, null, null);
+  for (var i = naf.length - 1; i >= 0; i--) {
+    // Count zeroes
+    for (var k = 0; i >= 0 && naf[i] === 0; i--)
+      k++;
+    if (i >= 0)
+      k++;
+    acc = acc.dblp(k);
+
+    if (i < 0)
+      break;
+    var z = naf[i];
+    assert(z !== 0);
+    if (p.type === 'affine') {
+      // J +- P
+      if (z > 0)
+        acc = acc.mixedAdd(wnd[(z - 1) >> 1]);
+      else
+        acc = acc.mixedAdd(wnd[(-z - 1) >> 1].neg());
+    } else {
+      // J +- J
+      if (z > 0)
+        acc = acc.add(wnd[(z - 1) >> 1]);
+      else
+        acc = acc.add(wnd[(-z - 1) >> 1].neg());
+    }
+  }
+  return p.type === 'affine' ? acc.toP() : acc;
+};
+
+BaseCurve.prototype._wnafMulAdd = function _wnafMulAdd(defW,
+                                                       points,
+                                                       coeffs,
+                                                       len) {
+  var wndWidth = this._wnafT1;
+  var wnd = this._wnafT2;
+  var naf = this._wnafT3;
+
+  // Fill all arrays
+  var max = 0;
+  for (var i = 0; i < len; i++) {
+    var p = points[i];
+    var nafPoints = p._getNAFPoints(defW);
+    wndWidth[i] = nafPoints.wnd;
+    wnd[i] = nafPoints.points;
+  }
+
+  // Comb small window NAFs
+  for (var i = len - 1; i >= 1; i -= 2) {
+    var a = i - 1;
+    var b = i;
+    if (wndWidth[a] !== 1 || wndWidth[b] !== 1) {
+      naf[a] = getNAF(coeffs[a], wndWidth[a]);
+      naf[b] = getNAF(coeffs[b], wndWidth[b]);
+      max = Math.max(naf[a].length, max);
+      max = Math.max(naf[b].length, max);
+      continue;
+    }
+
+    var comb = [
+      points[a], /* 1 */
+      null, /* 3 */
+      null, /* 5 */
+      points[b] /* 7 */
+    ];
+
+    // Try to avoid Projective points, if possible
+    if (points[a].y.cmp(points[b].y) === 0) {
+      comb[1] = points[a].add(points[b]);
+      comb[2] = points[a].toJ().mixedAdd(points[b].neg());
+    } else if (points[a].y.cmp(points[b].y.redNeg()) === 0) {
+      comb[1] = points[a].toJ().mixedAdd(points[b]);
+      comb[2] = points[a].add(points[b].neg());
+    } else {
+      comb[1] = points[a].toJ().mixedAdd(points[b]);
+      comb[2] = points[a].toJ().mixedAdd(points[b].neg());
+    }
+
+    var index = [
+      -3, /* -1 -1 */
+      -1, /* -1 0 */
+      -5, /* -1 1 */
+      -7, /* 0 -1 */
+      0, /* 0 0 */
+      7, /* 0 1 */
+      5, /* 1 -1 */
+      1, /* 1 0 */
+      3  /* 1 1 */
+    ];
+
+    var jsf = getJSF(coeffs[a], coeffs[b]);
+    max = Math.max(jsf[0].length, max);
+    naf[a] = new Array(max);
+    naf[b] = new Array(max);
+    for (var j = 0; j < max; j++) {
+      var ja = jsf[0][j] | 0;
+      var jb = jsf[1][j] | 0;
+
+      naf[a][j] = index[(ja + 1) * 3 + (jb + 1)];
+      naf[b][j] = 0;
+      wnd[a] = comb;
+    }
+  }
+
+  var acc = this.jpoint(null, null, null);
+  var tmp = this._wnafT4;
+  for (var i = max; i >= 0; i--) {
+    var k = 0;
+
+    while (i >= 0) {
+      var zero = true;
+      for (var j = 0; j < len; j++) {
+        tmp[j] = naf[j][i] | 0;
+        if (tmp[j] !== 0)
+          zero = false;
+      }
+      if (!zero)
+        break;
+      k++;
+      i--;
+    }
+    if (i >= 0)
+      k++;
+    acc = acc.dblp(k);
+    if (i < 0)
+      break;
+
+    for (var j = 0; j < len; j++) {
+      var z = tmp[j];
+      var p;
+      if (z === 0)
+        continue;
+      else if (z > 0)
+        p = wnd[j][(z - 1) >> 1];
+      else if (z < 0)
+        p = wnd[j][(-z - 1) >> 1].neg();
+
+      if (p.type === 'affine')
+        acc = acc.mixedAdd(p);
+      else
+        acc = acc.add(p);
+    }
+  }
+  // Zeroify references
+  for (var i = 0; i < len; i++)
+    wnd[i] = null;
+  return acc.toP();
+};
+
+function BasePoint(curve, type) {
+  this.curve = curve;
+  this.type = type;
+  this.precomputed = null;
+}
+BaseCurve.BasePoint = BasePoint;
+
+BasePoint.prototype.eq = function eq(/*other*/) {
+  throw new Error('Not implemented');
+};
+
+BasePoint.prototype.validate = function validate() {
+  return this.curve.validate(this);
+};
+
+BaseCurve.prototype.decodePoint = function decodePoint(bytes, enc) {
+  bytes = utils.toArray(bytes, enc);
+
+  var len = this.p.byteLength();
+  if (bytes[0] === 0x04 && bytes.length - 1 === 2 * len) {
+    return this.point(bytes.slice(1, 1 + len),
+                      bytes.slice(1 + len, 1 + 2 * len));
+  } else if ((bytes[0] === 0x02 || bytes[0] === 0x03) &&
+              bytes.length - 1 === len) {
+    return this.pointFromX(bytes.slice(1, 1 + len), bytes[0] === 0x03);
+  }
+  throw new Error('Unknown point format');
+};
+
+BasePoint.prototype.encodeCompressed = function encodeCompressed(enc) {
+  return this.encode(enc, true);
+};
+
+BasePoint.prototype._encode = function _encode(compact) {
+  var len = this.curve.p.byteLength();
+  var x = this.getX().toArray('be', len);
+
+  if (compact)
+    return [ this.getY().isEven() ? 0x02 : 0x03 ].concat(x);
+
+  return [ 0x04 ].concat(x, this.getY().toArray('be', len)) ;
+};
+
+BasePoint.prototype.encode = function encode(enc, compact) {
+  return utils.encode(this._encode(compact), enc);
+};
+
+BasePoint.prototype.precompute = function precompute(power) {
+  if (this.precomputed)
+    return this;
+
+  var precomputed = {
+    doubles: null,
+    naf: null,
+    beta: null
+  };
+  precomputed.naf = this._getNAFPoints(8);
+  precomputed.doubles = this._getDoubles(4, power);
+  precomputed.beta = this._getBeta();
+  this.precomputed = precomputed;
+
+  return this;
+};
+
+BasePoint.prototype._hasDoubles = function _hasDoubles(k) {
+  if (!this.precomputed)
+    return false;
+
+  var doubles = this.precomputed.doubles;
+  if (!doubles)
+    return false;
+
+  return doubles.points.length >= Math.ceil((k.bitLength() + 1) / doubles.step);
+};
+
+BasePoint.prototype._getDoubles = function _getDoubles(step, power) {
+  if (this.precomputed && this.precomputed.doubles)
+    return this.precomputed.doubles;
+
+  var doubles = [ this ];
+  var acc = this;
+  for (var i = 0; i < power; i += step) {
+    for (var j = 0; j < step; j++)
+      acc = acc.dbl();
+    doubles.push(acc);
+  }
+  return {
+    step: step,
+    points: doubles
+  };
+};
+
+BasePoint.prototype._getNAFPoints = function _getNAFPoints(wnd) {
+  if (this.precomputed && this.precomputed.naf)
+    return this.precomputed.naf;
+
+  var res = [ this ];
+  var max = (1 << wnd) - 1;
+  var dbl = max === 1 ? null : this.dbl();
+  for (var i = 1; i < max; i++)
+    res[i] = res[i - 1].add(dbl);
+  return {
+    wnd: wnd,
+    points: res
+  };
+};
+
+BasePoint.prototype._getBeta = function _getBeta() {
+  return null;
+};
+
+BasePoint.prototype.dblp = function dblp(k) {
+  var r = this;
+  for (var i = 0; i < k; i++)
+    r = r.dbl();
+  return r;
+};
+
+},{"../../elliptic":227,"bn.js":243}],229:[function(require,module,exports){
+'use strict';
+
+var curve = require('../curve');
+var elliptic = require('../../elliptic');
+var bn = require('bn.js');
+var inherits = require('inherits');
+var Base = curve.base;
+
+var assert = elliptic.utils.assert;
+
+function EdwardsCurve(conf) {
+  // NOTE: Important as we are creating point in Base.call()
+  this.twisted = (conf.a | 0) !== 1;
+  this.mOneA = this.twisted && (conf.a | 0) === -1;
+  this.extended = this.mOneA;
+
+  Base.call(this, 'edwards', conf);
+
+  this.a = new bn(conf.a, 16).umod(this.red.m);
+  this.a = this.a.toRed(this.red);
+  this.c = new bn(conf.c, 16).toRed(this.red);
+  this.c2 = this.c.redSqr();
+  this.d = new bn(conf.d, 16).toRed(this.red);
+  this.dd = this.d.redAdd(this.d);
+
+  assert(!this.twisted || this.c.fromRed().cmpn(1) === 0);
+  this.oneC = (conf.c | 0) === 1;
+}
+inherits(EdwardsCurve, Base);
+module.exports = EdwardsCurve;
+
+EdwardsCurve.prototype._mulA = function _mulA(num) {
+  if (this.mOneA)
+    return num.redNeg();
+  else
+    return this.a.redMul(num);
+};
+
+EdwardsCurve.prototype._mulC = function _mulC(num) {
+  if (this.oneC)
+    return num;
+  else
+    return this.c.redMul(num);
+};
+
+// Just for compatibility with Short curve
+EdwardsCurve.prototype.jpoint = function jpoint(x, y, z, t) {
+  return this.point(x, y, z, t);
+};
+
+EdwardsCurve.prototype.pointFromX = function pointFromX(x, odd) {
+  x = new bn(x, 16);
+  if (!x.red)
+    x = x.toRed(this.red);
+
+  var x2 = x.redSqr();
+  var rhs = this.c2.redSub(this.a.redMul(x2));
+  var lhs = this.one.redSub(this.c2.redMul(this.d).redMul(x2));
+
+  var y = rhs.redMul(lhs.redInvm()).redSqrt();
+  var isOdd = y.fromRed().isOdd();
+  if (odd && !isOdd || !odd && isOdd)
+    y = y.redNeg();
+
+  return this.point(x, y);
+};
+
+EdwardsCurve.prototype.pointFromY = function pointFromY(y, odd) {
+  y = new bn(y, 16);
+  if (!y.red)
+    y = y.toRed(this.red);
+
+  // x^2 = (y^2 - 1) / (d y^2 + 1)
+  var y2 = y.redSqr();
+  var lhs = y2.redSub(this.one);
+  var rhs = y2.redMul(this.d).redAdd(this.one);
+  var x2 = lhs.redMul(rhs.redInvm());
+
+  if (x2.cmp(this.zero) === 0) {
+    if (odd)
+      throw new Error('invalid point');
+    else
+      return this.point(this.zero, y);
+  }
+
+  var x = x2.redSqrt();
+  if (x.redSqr().redSub(x2).cmp(this.zero) !== 0)
+    throw new Error('invalid point');
+
+  if (x.isOdd() !== odd)
+    x = x.redNeg();
+
+  return this.point(x, y);
+};
+
+EdwardsCurve.prototype.validate = function validate(point) {
+  if (point.isInfinity())
+    return true;
+
+  // Curve: A * X^2 + Y^2 = C^2 * (1 + D * X^2 * Y^2)
+  point.normalize();
+
+  var x2 = point.x.redSqr();
+  var y2 = point.y.redSqr();
+  var lhs = x2.redMul(this.a).redAdd(y2);
+  var rhs = this.c2.redMul(this.one.redAdd(this.d.redMul(x2).redMul(y2)));
+
+  return lhs.cmp(rhs) === 0;
+};
+
+function Point(curve, x, y, z, t) {
+  Base.BasePoint.call(this, curve, 'projective');
+  if (x === null && y === null && z === null) {
+    this.x = this.curve.zero;
+    this.y = this.curve.one;
+    this.z = this.curve.one;
+    this.t = this.curve.zero;
+    this.zOne = true;
+  } else {
+    this.x = new bn(x, 16);
+    this.y = new bn(y, 16);
+    this.z = z ? new bn(z, 16) : this.curve.one;
+    this.t = t && new bn(t, 16);
+    if (!this.x.red)
+      this.x = this.x.toRed(this.curve.red);
+    if (!this.y.red)
+      this.y = this.y.toRed(this.curve.red);
+    if (!this.z.red)
+      this.z = this.z.toRed(this.curve.red);
+    if (this.t && !this.t.red)
+      this.t = this.t.toRed(this.curve.red);
+    this.zOne = this.z === this.curve.one;
+
+    // Use extended coordinates
+    if (this.curve.extended && !this.t) {
+      this.t = this.x.redMul(this.y);
+      if (!this.zOne)
+        this.t = this.t.redMul(this.z.redInvm());
+    }
+  }
+}
+inherits(Point, Base.BasePoint);
+
+EdwardsCurve.prototype.pointFromJSON = function pointFromJSON(obj) {
+  return Point.fromJSON(this, obj);
+};
+
+EdwardsCurve.prototype.point = function point(x, y, z, t) {
+  return new Point(this, x, y, z, t);
+};
+
+Point.fromJSON = function fromJSON(curve, obj) {
+  return new Point(curve, obj[0], obj[1], obj[2]);
+};
+
+Point.prototype.inspect = function inspect() {
+  if (this.isInfinity())
+    return '<EC Point Infinity>';
+  return '<EC Point x: ' + this.x.fromRed().toString(16, 2) +
+      ' y: ' + this.y.fromRed().toString(16, 2) +
+      ' z: ' + this.z.fromRed().toString(16, 2) + '>';
+};
+
+Point.prototype.isInfinity = function isInfinity() {
+  // XXX This code assumes that zero is always zero in red
+  return this.x.cmpn(0) === 0 &&
+         this.y.cmp(this.z) === 0;
+};
+
+Point.prototype._extDbl = function _extDbl() {
+  // hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
+  //     #doubling-dbl-2008-hwcd
+  // 4M + 4S
+
+  // A = X1^2
+  var a = this.x.redSqr();
+  // B = Y1^2
+  var b = this.y.redSqr();
+  // C = 2 * Z1^2
+  var c = this.z.redSqr();
+  c = c.redIAdd(c);
+  // D = a * A
+  var d = this.curve._mulA(a);
+  // E = (X1 + Y1)^2 - A - B
+  var e = this.x.redAdd(this.y).redSqr().redISub(a).redISub(b);
+  // G = D + B
+  var g = d.redAdd(b);
+  // F = G - C
+  var f = g.redSub(c);
+  // H = D - B
+  var h = d.redSub(b);
+  // X3 = E * F
+  var nx = e.redMul(f);
+  // Y3 = G * H
+  var ny = g.redMul(h);
+  // T3 = E * H
+  var nt = e.redMul(h);
+  // Z3 = F * G
+  var nz = f.redMul(g);
+  return this.curve.point(nx, ny, nz, nt);
+};
+
+Point.prototype._projDbl = function _projDbl() {
+  // hyperelliptic.org/EFD/g1p/auto-twisted-projective.html
+  //     #doubling-dbl-2008-bbjlp
+  //     #doubling-dbl-2007-bl
+  // and others
+  // Generally 3M + 4S or 2M + 4S
+
+  // B = (X1 + Y1)^2
+  var b = this.x.redAdd(this.y).redSqr();
+  // C = X1^2
+  var c = this.x.redSqr();
+  // D = Y1^2
+  var d = this.y.redSqr();
+
+  var nx;
+  var ny;
+  var nz;
+  if (this.curve.twisted) {
+    // E = a * C
+    var e = this.curve._mulA(c);
+    // F = E + D
+    var f = e.redAdd(d);
+    if (this.zOne) {
+      // X3 = (B - C - D) * (F - 2)
+      nx = b.redSub(c).redSub(d).redMul(f.redSub(this.curve.two));
+      // Y3 = F * (E - D)
+      ny = f.redMul(e.redSub(d));
+      // Z3 = F^2 - 2 * F
+      nz = f.redSqr().redSub(f).redSub(f);
+    } else {
+      // H = Z1^2
+      var h = this.z.redSqr();
+      // J = F - 2 * H
+      var j = f.redSub(h).redISub(h);
+      // X3 = (B-C-D)*J
+      nx = b.redSub(c).redISub(d).redMul(j);
+      // Y3 = F * (E - D)
+      ny = f.redMul(e.redSub(d));
+      // Z3 = F * J
+      nz = f.redMul(j);
+    }
+  } else {
+    // E = C + D
+    var e = c.redAdd(d);
+    // H = (c * Z1)^2
+    var h = this.curve._mulC(this.c.redMul(this.z)).redSqr();
+    // J = E - 2 * H
+    var j = e.redSub(h).redSub(h);
+    // X3 = c * (B - E) * J
+    nx = this.curve._mulC(b.redISub(e)).redMul(j);
+    // Y3 = c * E * (C - D)
+    ny = this.curve._mulC(e).redMul(c.redISub(d));
+    // Z3 = E * J
+    nz = e.redMul(j);
+  }
+  return this.curve.point(nx, ny, nz);
+};
+
+Point.prototype.dbl = function dbl() {
+  if (this.isInfinity())
+    return this;
+
+  // Double in extended coordinates
+  if (this.curve.extended)
+    return this._extDbl();
+  else
+    return this._projDbl();
+};
+
+Point.prototype._extAdd = function _extAdd(p) {
+  // hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
+  //     #addition-add-2008-hwcd-3
+  // 8M
+
+  // A = (Y1 - X1) * (Y2 - X2)
+  var a = this.y.redSub(this.x).redMul(p.y.redSub(p.x));
+  // B = (Y1 + X1) * (Y2 + X2)
+  var b = this.y.redAdd(this.x).redMul(p.y.redAdd(p.x));
+  // C = T1 * k * T2
+  var c = this.t.redMul(this.curve.dd).redMul(p.t);
+  // D = Z1 * 2 * Z2
+  var d = this.z.redMul(p.z.redAdd(p.z));
+  // E = B - A
+  var e = b.redSub(a);
+  // F = D - C
+  var f = d.redSub(c);
+  // G = D + C
+  var g = d.redAdd(c);
+  // H = B + A
+  var h = b.redAdd(a);
+  // X3 = E * F
+  var nx = e.redMul(f);
+  // Y3 = G * H
+  var ny = g.redMul(h);
+  // T3 = E * H
+  var nt = e.redMul(h);
+  // Z3 = F * G
+  var nz = f.redMul(g);
+  return this.curve.point(nx, ny, nz, nt);
+};
+
+Point.prototype._projAdd = function _projAdd(p) {
+  // hyperelliptic.org/EFD/g1p/auto-twisted-projective.html
+  //     #addition-add-2008-bbjlp
+  //     #addition-add-2007-bl
+  // 10M + 1S
+
+  // A = Z1 * Z2
+  var a = this.z.redMul(p.z);
+  // B = A^2
+  var b = a.redSqr();
+  // C = X1 * X2
+  var c = this.x.redMul(p.x);
+  // D = Y1 * Y2
+  var d = this.y.redMul(p.y);
+  // E = d * C * D
+  var e = this.curve.d.redMul(c).redMul(d);
+  // F = B - E
+  var f = b.redSub(e);
+  // G = B + E
+  var g = b.redAdd(e);
+  // X3 = A * F * ((X1 + Y1) * (X2 + Y2) - C - D)
+  var tmp = this.x.redAdd(this.y).redMul(p.x.redAdd(p.y)).redISub(c).redISub(d);
+  var nx = a.redMul(f).redMul(tmp);
+  var ny;
+  var nz;
+  if (this.curve.twisted) {
+    // Y3 = A * G * (D - a * C)
+    ny = a.redMul(g).redMul(d.redSub(this.curve._mulA(c)));
+    // Z3 = F * G
+    nz = f.redMul(g);
+  } else {
+    // Y3 = A * G * (D - C)
+    ny = a.redMul(g).redMul(d.redSub(c));
+    // Z3 = c * F * G
+    nz = this.curve._mulC(f).redMul(g);
+  }
+  return this.curve.point(nx, ny, nz);
+};
+
+Point.prototype.add = function add(p) {
+  if (this.isInfinity())
+    return p;
+  if (p.isInfinity())
+    return this;
+
+  if (this.curve.extended)
+    return this._extAdd(p);
+  else
+    return this._projAdd(p);
+};
+
+Point.prototype.mul = function mul(k) {
+  if (this._hasDoubles(k))
+    return this.curve._fixedNafMul(this, k);
+  else
+    return this.curve._wnafMul(this, k);
+};
+
+Point.prototype.mulAdd = function mulAdd(k1, p, k2) {
+  return this.curve._wnafMulAdd(1, [ this, p ], [ k1, k2 ], 2);
+};
+
+Point.prototype.normalize = function normalize() {
+  if (this.zOne)
+    return this;
+
+  // Normalize coordinates
+  var zi = this.z.redInvm();
+  this.x = this.x.redMul(zi);
+  this.y = this.y.redMul(zi);
+  if (this.t)
+    this.t = this.t.redMul(zi);
+  this.z = this.curve.one;
+  this.zOne = true;
+  return this;
+};
+
+Point.prototype.neg = function neg() {
+  return this.curve.point(this.x.redNeg(),
+                          this.y,
+                          this.z,
+                          this.t && this.t.redNeg());
+};
+
+Point.prototype.getX = function getX() {
+  this.normalize();
+  return this.x.fromRed();
+};
+
+Point.prototype.getY = function getY() {
+  this.normalize();
+  return this.y.fromRed();
+};
+
+Point.prototype.eq = function eq(other) {
+  return this === other ||
+         this.getX().cmp(other.getX()) === 0 &&
+         this.getY().cmp(other.getY()) === 0;
+};
+
+// Compatibility with BaseCurve
+Point.prototype.toP = Point.prototype.normalize;
+Point.prototype.mixedAdd = Point.prototype.add;
+
+},{"../../elliptic":227,"../curve":230,"bn.js":243,"inherits":251}],230:[function(require,module,exports){
 arguments[4][50][0].apply(exports,arguments)
 },{"./base":228,"./edwards":229,"./mont":231,"./short":232,"dup":50}],231:[function(require,module,exports){
-arguments[4][51][0].apply(exports,arguments)
-},{"../../elliptic":227,"../curve":230,"bn.js":243,"dup":51,"inherits":251}],232:[function(require,module,exports){
+'use strict';
+
+var curve = require('../curve');
+var bn = require('bn.js');
+var inherits = require('inherits');
+var Base = curve.base;
+
+var elliptic = require('../../elliptic');
+var utils = elliptic.utils;
+
+function MontCurve(conf) {
+  Base.call(this, 'mont', conf);
+
+  this.a = new bn(conf.a, 16).toRed(this.red);
+  this.b = new bn(conf.b, 16).toRed(this.red);
+  this.i4 = new bn(4).toRed(this.red).redInvm();
+  this.two = new bn(2).toRed(this.red);
+  this.a24 = this.i4.redMul(this.a.redAdd(this.two));
+}
+inherits(MontCurve, Base);
+module.exports = MontCurve;
+
+MontCurve.prototype.validate = function validate(point) {
+  var x = point.normalize().x;
+  var x2 = x.redSqr();
+  var rhs = x2.redMul(x).redAdd(x2.redMul(this.a)).redAdd(x);
+  var y = rhs.redSqrt();
+
+  return y.redSqr().cmp(rhs) === 0;
+};
+
+function Point(curve, x, z) {
+  Base.BasePoint.call(this, curve, 'projective');
+  if (x === null && z === null) {
+    this.x = this.curve.one;
+    this.z = this.curve.zero;
+  } else {
+    this.x = new bn(x, 16);
+    this.z = new bn(z, 16);
+    if (!this.x.red)
+      this.x = this.x.toRed(this.curve.red);
+    if (!this.z.red)
+      this.z = this.z.toRed(this.curve.red);
+  }
+}
+inherits(Point, Base.BasePoint);
+
+MontCurve.prototype.decodePoint = function decodePoint(bytes, enc) {
+  return this.point(utils.toArray(bytes, enc), 1);
+};
+
+MontCurve.prototype.point = function point(x, z) {
+  return new Point(this, x, z);
+};
+
+MontCurve.prototype.pointFromJSON = function pointFromJSON(obj) {
+  return Point.fromJSON(this, obj);
+};
+
+Point.prototype.precompute = function precompute() {
+  // No-op
+};
+
+Point.prototype._encode = function _encode() {
+  return this.getX().toArray('be', this.curve.p.byteLength());
+};
+
+Point.fromJSON = function fromJSON(curve, obj) {
+  return new Point(curve, obj[0], obj[1] || curve.one);
+};
+
+Point.prototype.inspect = function inspect() {
+  if (this.isInfinity())
+    return '<EC Point Infinity>';
+  return '<EC Point x: ' + this.x.fromRed().toString(16, 2) +
+      ' z: ' + this.z.fromRed().toString(16, 2) + '>';
+};
+
+Point.prototype.isInfinity = function isInfinity() {
+  // XXX This code assumes that zero is always zero in red
+  return this.z.cmpn(0) === 0;
+};
+
+Point.prototype.dbl = function dbl() {
+  // http://hyperelliptic.org/EFD/g1p/auto-montgom-xz.html#doubling-dbl-1987-m-3
+  // 2M + 2S + 4A
+
+  // A = X1 + Z1
+  var a = this.x.redAdd(this.z);
+  // AA = A^2
+  var aa = a.redSqr();
+  // B = X1 - Z1
+  var b = this.x.redSub(this.z);
+  // BB = B^2
+  var bb = b.redSqr();
+  // C = AA - BB
+  var c = aa.redSub(bb);
+  // X3 = AA * BB
+  var nx = aa.redMul(bb);
+  // Z3 = C * (BB + A24 * C)
+  var nz = c.redMul(bb.redAdd(this.curve.a24.redMul(c)));
+  return this.curve.point(nx, nz);
+};
+
+Point.prototype.add = function add() {
+  throw new Error('Not supported on Montgomery curve');
+};
+
+Point.prototype.diffAdd = function diffAdd(p, diff) {
+  // http://hyperelliptic.org/EFD/g1p/auto-montgom-xz.html#diffadd-dadd-1987-m-3
+  // 4M + 2S + 6A
+
+  // A = X2 + Z2
+  var a = this.x.redAdd(this.z);
+  // B = X2 - Z2
+  var b = this.x.redSub(this.z);
+  // C = X3 + Z3
+  var c = p.x.redAdd(p.z);
+  // D = X3 - Z3
+  var d = p.x.redSub(p.z);
+  // DA = D * A
+  var da = d.redMul(a);
+  // CB = C * B
+  var cb = c.redMul(b);
+  // X5 = Z1 * (DA + CB)^2
+  var nx = diff.z.redMul(da.redAdd(cb).redSqr());
+  // Z5 = X1 * (DA - CB)^2
+  var nz = diff.x.redMul(da.redISub(cb).redSqr());
+  return this.curve.point(nx, nz);
+};
+
+Point.prototype.mul = function mul(k) {
+  var t = k.clone();
+  var a = this; // (N / 2) * Q + Q
+  var b = this.curve.point(null, null); // (N / 2) * Q
+  var c = this; // Q
+
+  for (var bits = []; t.cmpn(0) !== 0; t.iushrn(1))
+    bits.push(t.andln(1));
+
+  for (var i = bits.length - 1; i >= 0; i--) {
+    if (bits[i] === 0) {
+      // N * Q + Q = ((N / 2) * Q + Q)) + (N / 2) * Q
+      a = a.diffAdd(b, c);
+      // N * Q = 2 * ((N / 2) * Q + Q))
+      b = b.dbl();
+    } else {
+      // N * Q = ((N / 2) * Q + Q) + ((N / 2) * Q)
+      b = a.diffAdd(b, c);
+      // N * Q + Q = 2 * ((N / 2) * Q + Q)
+      a = a.dbl();
+    }
+  }
+  return b;
+};
+
+Point.prototype.mulAdd = function mulAdd() {
+  throw new Error('Not supported on Montgomery curve');
+};
+
+Point.prototype.eq = function eq(other) {
+  return this.getX().cmp(other.getX()) === 0;
+};
+
+Point.prototype.normalize = function normalize() {
+  this.x = this.x.redMul(this.z.redInvm());
+  this.z = this.curve.one;
+  return this;
+};
+
+Point.prototype.getX = function getX() {
+  // Normalize coordinates
+  this.normalize();
+
+  return this.x.fromRed();
+};
+
+},{"../../elliptic":227,"../curve":230,"bn.js":243,"inherits":251}],232:[function(require,module,exports){
 'use strict';
 
 var curve = require('../curve');
@@ -35751,22 +36191,503 @@ EC.prototype.getKeyRecoveryParam = function(e, signature, Q, enc) {
 };
 
 },{"../../elliptic":227,"./key":235,"./signature":236,"bn.js":243}],235:[function(require,module,exports){
-arguments[4][55][0].apply(exports,arguments)
-},{"bn.js":243,"dup":55}],236:[function(require,module,exports){
-arguments[4][56][0].apply(exports,arguments)
-},{"../../elliptic":227,"bn.js":243,"dup":56}],237:[function(require,module,exports){
+'use strict';
+
+var bn = require('bn.js');
+
+function KeyPair(ec, options) {
+  this.ec = ec;
+  this.priv = null;
+  this.pub = null;
+
+  // KeyPair(ec, { priv: ..., pub: ... })
+  if (options.priv)
+    this._importPrivate(options.priv, options.privEnc);
+  if (options.pub)
+    this._importPublic(options.pub, options.pubEnc);
+}
+module.exports = KeyPair;
+
+KeyPair.fromPublic = function fromPublic(ec, pub, enc) {
+  if (pub instanceof KeyPair)
+    return pub;
+
+  return new KeyPair(ec, {
+    pub: pub,
+    pubEnc: enc
+  });
+};
+
+KeyPair.fromPrivate = function fromPrivate(ec, priv, enc) {
+  if (priv instanceof KeyPair)
+    return priv;
+
+  return new KeyPair(ec, {
+    priv: priv,
+    privEnc: enc
+  });
+};
+
+KeyPair.prototype.validate = function validate() {
+  var pub = this.getPublic();
+
+  if (pub.isInfinity())
+    return { result: false, reason: 'Invalid public key' };
+  if (!pub.validate())
+    return { result: false, reason: 'Public key is not a point' };
+  if (!pub.mul(this.ec.curve.n).isInfinity())
+    return { result: false, reason: 'Public key * N != O' };
+
+  return { result: true, reason: null };
+};
+
+KeyPair.prototype.getPublic = function getPublic(compact, enc) {
+  // compact is optional argument
+  if (typeof compact === 'string') {
+    enc = compact;
+    compact = null;
+  }
+
+  if (!this.pub)
+    this.pub = this.ec.g.mul(this.priv);
+
+  if (!enc)
+    return this.pub;
+
+  return this.pub.encode(enc, compact);
+};
+
+KeyPair.prototype.getPrivate = function getPrivate(enc) {
+  if (enc === 'hex')
+    return this.priv.toString(16, 2);
+  else
+    return this.priv;
+};
+
+KeyPair.prototype._importPrivate = function _importPrivate(key, enc) {
+  this.priv = new bn(key, enc || 16);
+
+  // Ensure that the priv won't be bigger than n, otherwise we may fail
+  // in fixed multiplication method
+  this.priv = this.priv.umod(this.ec.curve.n);
+};
+
+KeyPair.prototype._importPublic = function _importPublic(key, enc) {
+  if (key.x || key.y) {
+    this.pub = this.ec.curve.point(key.x, key.y);
+    return;
+  }
+  this.pub = this.ec.curve.decodePoint(key, enc);
+};
+
+// ECDH
+KeyPair.prototype.derive = function derive(pub) {
+  return pub.mul(this.priv).getX();
+};
+
+// ECDSA
+KeyPair.prototype.sign = function sign(msg, enc, options) {
+  return this.ec.sign(msg, this, enc, options);
+};
+
+KeyPair.prototype.verify = function verify(msg, signature) {
+  return this.ec.verify(msg, signature, this);
+};
+
+KeyPair.prototype.inspect = function inspect() {
+  return '<Key priv: ' + (this.priv && this.priv.toString(16, 2)) +
+         ' pub: ' + (this.pub && this.pub.inspect()) + ' >';
+};
+
+},{"bn.js":243}],236:[function(require,module,exports){
+'use strict';
+
+var bn = require('bn.js');
+
+var elliptic = require('../../elliptic');
+var utils = elliptic.utils;
+var assert = utils.assert;
+
+function Signature(options, enc) {
+  if (options instanceof Signature)
+    return options;
+
+  if (this._importDER(options, enc))
+    return;
+
+  assert(options.r && options.s, 'Signature without r or s');
+  this.r = new bn(options.r, 16);
+  this.s = new bn(options.s, 16);
+  if (options.recoveryParam !== null)
+    this.recoveryParam = options.recoveryParam;
+  else
+    this.recoveryParam = null;
+}
+module.exports = Signature;
+
+function Position() {
+  this.place = 0;
+}
+
+function getLength(buf, p) {
+  var initial = buf[p.place++];
+  if (!(initial & 0x80)) {
+    return initial;
+  }
+  var octetLen = initial & 0xf;
+  var val = 0;
+  for (var i = 0, off = p.place; i < octetLen; i++, off++) {
+    val <<= 8;
+    val |= buf[off];
+  }
+  p.place = off;
+  return val;
+}
+
+function rmPadding(buf) {
+  var i = 0;
+  var len = buf.length - 1;
+  while (!buf[i] && !(buf[i + 1] & 0x80) && i < len) {
+    i++;
+  }
+  if (i === 0) {
+    return buf;
+  }
+  return buf.slice(i);
+}
+
+Signature.prototype._importDER = function _importDER(data, enc) {
+  data = utils.toArray(data, enc);
+  var p = new Position();
+  if (data[p.place++] !== 0x30) {
+    return false;
+  }
+  var len = getLength(data, p);
+  if ((len + p.place) !== data.length) {
+    return false;
+  }
+  if (data[p.place++] !== 0x02) {
+    return false;
+  }
+  var rlen = getLength(data, p);
+  var r = data.slice(p.place, rlen + p.place);
+  p.place += rlen;
+  if (data[p.place++] !== 0x02) {
+    return false;
+  }
+  var slen = getLength(data, p);
+  if (data.length !== slen + p.place) {
+    return false;
+  }
+  var s = data.slice(p.place, slen + p.place);
+  if (r[0] === 0 && (r[1] & 0x80)) {
+    r = r.slice(1);
+  }
+  if (s[0] === 0 && (s[1] & 0x80)) {
+    s = s.slice(1);
+  }
+
+  this.r = new bn(r);
+  this.s = new bn(s);
+  this.recoveryParam = null;
+
+  return true;
+};
+
+function constructLength(arr, len) {
+  if (len < 0x80) {
+    arr.push(len);
+    return;
+  }
+  var octets = 1 + (Math.log(len) / Math.LN2 >>> 3);
+  arr.push(octets | 0x80);
+  while (--octets) {
+    arr.push((len >>> (octets << 3)) & 0xff);
+  }
+  arr.push(len);
+}
+
+Signature.prototype.toDER = function toDER(enc) {
+  var r = this.r.toArray();
+  var s = this.s.toArray();
+
+  // Pad values
+  if (r[0] & 0x80)
+    r = [ 0 ].concat(r);
+  // Pad values
+  if (s[0] & 0x80)
+    s = [ 0 ].concat(s);
+
+  r = rmPadding(r);
+  s = rmPadding(s);
+
+  while (!s[0] && !(s[1] & 0x80)) {
+    s = s.slice(1);
+  }
+  var arr = [ 0x02 ];
+  constructLength(arr, r.length);
+  arr = arr.concat(r);
+  arr.push(0x02);
+  constructLength(arr, s.length);
+  var backHalf = arr.concat(s);
+  var res = [ 0x30 ];
+  constructLength(res, backHalf.length);
+  res = res.concat(backHalf);
+  return utils.encode(res, enc);
+};
+
+},{"../../elliptic":227,"bn.js":243}],237:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
 },{"../../elliptic":227,"./key":238,"./signature":239,"dup":57,"hash.js":245}],238:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
 },{"../../elliptic":227,"dup":58}],239:[function(require,module,exports){
-arguments[4][59][0].apply(exports,arguments)
-},{"../../elliptic":227,"bn.js":243,"dup":59}],240:[function(require,module,exports){
+'use strict';
+
+var bn = require('bn.js');
+var elliptic = require('../../elliptic');
+var utils = elliptic.utils;
+var assert = utils.assert;
+var cachedProperty = utils.cachedProperty;
+var parseBytes = utils.parseBytes;
+
+/**
+* @param {EDDSA} eddsa - eddsa instance
+* @param {Array<Bytes>|Object} sig -
+* @param {Array<Bytes>|Point} [sig.R] - R point as Point or bytes
+* @param {Array<Bytes>|bn} [sig.S] - S scalar as bn or bytes
+* @param {Array<Bytes>} [sig.Rencoded] - R point encoded
+* @param {Array<Bytes>} [sig.Sencoded] - S scalar encoded
+*/
+function Signature(eddsa, sig) {
+  this.eddsa = eddsa;
+
+  if (typeof sig !== 'object')
+    sig = parseBytes(sig);
+
+  if (Array.isArray(sig)) {
+    sig = {
+      R: sig.slice(0, eddsa.encodingLength),
+      S: sig.slice(eddsa.encodingLength)
+    };
+  }
+
+  assert(sig.R && sig.S, 'Signature without R or S');
+
+  if (eddsa.isPoint(sig.R))
+    this._R = sig.R;
+  if (sig.S instanceof bn)
+    this._S = sig.S;
+
+  this._Rencoded = Array.isArray(sig.R) ? sig.R : sig.Rencoded;
+  this._Sencoded = Array.isArray(sig.S) ? sig.S : sig.Sencoded;
+}
+
+cachedProperty(Signature, function S() {
+  return this.eddsa.decodeInt(this.Sencoded());
+});
+
+cachedProperty(Signature, function R() {
+  return this.eddsa.decodePoint(this.Rencoded());
+});
+
+cachedProperty(Signature, function Rencoded() {
+  return this.eddsa.encodePoint(this.R());
+});
+
+cachedProperty(Signature, function Sencoded() {
+  return this.eddsa.encodeInt(this.S());
+});
+
+Signature.prototype.toBytes = function toBytes() {
+  return this.Rencoded().concat(this.Sencoded());
+};
+
+Signature.prototype.toHex = function toHex() {
+  return utils.encode(this.toBytes(), 'hex').toUpperCase();
+};
+
+module.exports = Signature;
+
+},{"../../elliptic":227,"bn.js":243}],240:[function(require,module,exports){
 arguments[4][60][0].apply(exports,arguments)
 },{"../elliptic":227,"dup":60,"hash.js":245}],241:[function(require,module,exports){
 arguments[4][61][0].apply(exports,arguments)
 },{"dup":61}],242:[function(require,module,exports){
-arguments[4][62][0].apply(exports,arguments)
-},{"bn.js":243,"dup":62}],243:[function(require,module,exports){
+'use strict';
+
+var utils = exports;
+var bn = require('bn.js');
+
+utils.assert = function assert(val, msg) {
+  if (!val)
+    throw new Error(msg || 'Assertion failed');
+};
+
+function toArray(msg, enc) {
+  if (Array.isArray(msg))
+    return msg.slice();
+  if (!msg)
+    return [];
+  var res = [];
+  if (typeof msg !== 'string') {
+    for (var i = 0; i < msg.length; i++)
+      res[i] = msg[i] | 0;
+    return res;
+  }
+  if (!enc) {
+    for (var i = 0; i < msg.length; i++) {
+      var c = msg.charCodeAt(i);
+      var hi = c >> 8;
+      var lo = c & 0xff;
+      if (hi)
+        res.push(hi, lo);
+      else
+        res.push(lo);
+    }
+  } else if (enc === 'hex') {
+    msg = msg.replace(/[^a-z0-9]+/ig, '');
+    if (msg.length % 2 !== 0)
+      msg = '0' + msg;
+    for (var i = 0; i < msg.length; i += 2)
+      res.push(parseInt(msg[i] + msg[i + 1], 16));
+  }
+  return res;
+}
+utils.toArray = toArray;
+
+function zero2(word) {
+  if (word.length === 1)
+    return '0' + word;
+  else
+    return word;
+}
+utils.zero2 = zero2;
+
+function toHex(msg) {
+  var res = '';
+  for (var i = 0; i < msg.length; i++)
+    res += zero2(msg[i].toString(16));
+  return res;
+}
+utils.toHex = toHex;
+
+utils.encode = function encode(arr, enc) {
+  if (enc === 'hex')
+    return toHex(arr);
+  else
+    return arr;
+};
+
+// Represent num in a w-NAF form
+function getNAF(num, w) {
+  var naf = [];
+  var ws = 1 << (w + 1);
+  var k = num.clone();
+  while (k.cmpn(1) >= 0) {
+    var z;
+    if (k.isOdd()) {
+      var mod = k.andln(ws - 1);
+      if (mod > (ws >> 1) - 1)
+        z = (ws >> 1) - mod;
+      else
+        z = mod;
+      k.isubn(z);
+    } else {
+      z = 0;
+    }
+    naf.push(z);
+
+    // Optimization, shift by word if possible
+    var shift = (k.cmpn(0) !== 0 && k.andln(ws - 1) === 0) ? (w + 1) : 1;
+    for (var i = 1; i < shift; i++)
+      naf.push(0);
+    k.iushrn(shift);
+  }
+
+  return naf;
+}
+utils.getNAF = getNAF;
+
+// Represent k1, k2 in a Joint Sparse Form
+function getJSF(k1, k2) {
+  var jsf = [
+    [],
+    []
+  ];
+
+  k1 = k1.clone();
+  k2 = k2.clone();
+  var d1 = 0;
+  var d2 = 0;
+  while (k1.cmpn(-d1) > 0 || k2.cmpn(-d2) > 0) {
+
+    // First phase
+    var m14 = (k1.andln(3) + d1) & 3;
+    var m24 = (k2.andln(3) + d2) & 3;
+    if (m14 === 3)
+      m14 = -1;
+    if (m24 === 3)
+      m24 = -1;
+    var u1;
+    if ((m14 & 1) === 0) {
+      u1 = 0;
+    } else {
+      var m8 = (k1.andln(7) + d1) & 7;
+      if ((m8 === 3 || m8 === 5) && m24 === 2)
+        u1 = -m14;
+      else
+        u1 = m14;
+    }
+    jsf[0].push(u1);
+
+    var u2;
+    if ((m24 & 1) === 0) {
+      u2 = 0;
+    } else {
+      var m8 = (k2.andln(7) + d2) & 7;
+      if ((m8 === 3 || m8 === 5) && m14 === 2)
+        u2 = -m24;
+      else
+        u2 = m24;
+    }
+    jsf[1].push(u2);
+
+    // Second phase
+    if (2 * d1 === u1 + 1)
+      d1 = 1 - d1;
+    if (2 * d2 === u2 + 1)
+      d2 = 1 - d2;
+    k1.iushrn(1);
+    k2.iushrn(1);
+  }
+
+  return jsf;
+}
+utils.getJSF = getJSF;
+
+function cachedProperty(obj, computer) {
+  var name = computer.name;
+  var key = '_' + name;
+  obj.prototype[name] = function cachedProperty() {
+    return this[key] !== undefined ? this[key] :
+           this[key] = computer.call(this);
+  };
+}
+utils.cachedProperty = cachedProperty;
+
+function parseBytes(bytes) {
+  return typeof bytes === 'string' ? utils.toArray(bytes, 'hex') :
+                                     bytes;
+}
+utils.parseBytes = parseBytes;
+
+function intFromLE(bytes) {
+  return new bn(bytes, 'hex', 'le');
+}
+utils.intFromLE = intFromLE;
+
+
+},{"bn.js":243}],243:[function(require,module,exports){
 (function (module, exports) {
 
 'use strict';
@@ -39648,6 +40569,87 @@ function toBuffer (v) {
 }).call(this,require("buffer").Buffer)
 },{"buffer":8,"crypto":12}],259:[function(require,module,exports){
 /*!
+ * depd
+ * Copyright(c) 2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+'use strict'
+
+/**
+ * Module exports.
+ * @public
+ */
+
+module.exports = depd
+
+/**
+ * Create deprecate for namespace in caller.
+ */
+
+function depd(namespace) {
+  if (!namespace) {
+    throw new TypeError('argument namespace is required')
+  }
+
+  function deprecate(message) {
+    // no-op in browser
+  }
+
+  deprecate._file = undefined
+  deprecate._ignored = true
+  deprecate._namespace = namespace
+  deprecate._traced = false
+  deprecate._warned = Object.create(null)
+
+  deprecate.function = wrapfunction
+  deprecate.property = wrapproperty
+
+  return deprecate
+}
+
+/**
+ * Return a wrapped function in a deprecation message.
+ *
+ * This is a no-op version of the wrapper, which does nothing but call
+ * validation.
+ */
+
+function wrapfunction(fn, message) {
+  if (typeof fn !== 'function') {
+    throw new TypeError('argument fn must be a function')
+  }
+
+  return fn
+}
+
+/**
+ * Wrap property in a deprecation message.
+ *
+ * This is a no-op version of the wrapper, which does nothing but call
+ * validation.
+ */
+
+function wrapproperty(obj, prop, message) {
+  if (!obj || (typeof obj !== 'object' && typeof obj !== 'function')) {
+    throw new TypeError('argument obj must be object')
+  }
+
+  var descriptor = Object.getOwnPropertyDescriptor(obj, prop)
+
+  if (!descriptor) {
+    throw new TypeError('must call property on owner object')
+  }
+
+  if (!descriptor.configurable) {
+    throw new TypeError('property must be configurable')
+  }
+
+  return
+}
+
+},{}],260:[function(require,module,exports){
+/*!
  * Copyright (c) 2015 Chris O'Hara <cohara87@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -39684,7 +40686,7 @@ function toBuffer (v) {
 
     'use strict';
 
-    validator = { version: '4.4.0' };
+    validator = { version: '4.7.1', coerce: true };
 
     var emailUserPart = /^[a-z\d!#\$%&'\*\+\-\/=\?\^_`{\|}~]+$/i;
     var quotedEmailUser = /^([\s\x01-\x08\x0b\x0c\x0e-\x1f\x7f\x21\x23-\x5b\x5d-\x7e]|(\\[\x01-\x09\x0b\x0c\x0d-\x7f]))*$/i;
@@ -39713,8 +40715,14 @@ function toBuffer (v) {
       , all: /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i
     };
 
-    var alpha = /^[A-Z]+$/i
-      , alphanumeric = /^[0-9A-Z]+$/i
+    var alpha = {
+        'en-US': /^[A-Z]+$/i,
+        'de-DE': /^[A-ZÄÖÜß]+$/i,
+      }
+      , alphanumeric = {
+        'en-US': /^[0-9A-Z]+$/i,
+        'de-DE': /^[0-9A-ZÄÖÜß]+$/i
+      }
       , numeric = /^[-+]?[0-9]+$/
       , int = /^(?:[-+]?(?:0|[1-9][0-9]*))$/
       , float = /^(?:[-+]?(?:[0-9]+))?(?:\.[0-9]*)?(?:[eE][\+\-]?(?:[0-9]+))?$/
@@ -39732,22 +40740,26 @@ function toBuffer (v) {
     var base64 = /^(?:[A-Z0-9+\/]{4})*(?:[A-Z0-9+\/]{2}==|[A-Z0-9+\/]{3}=|[A-Z0-9+\/]{4})$/i;
 
     var phones = {
-      'zh-CN': /^(\+?0?86\-?)?1[345789]\d{9}$/,
+      'zh-CN': /^(\+?0?86\-?)?((13\d|14[57]|15[^4,\D]|17[678]|18\d)\d{8}|170[059]\d{7})$/,
       'zh-TW': /^(\+?886\-?|0)?9\d{8}$/,
       'en-ZA': /^(\+?27|0)\d{9}$/,
       'en-AU': /^(\+?61|0)4\d{8}$/,
       'en-HK': /^(\+?852\-?)?[569]\d{3}\-?\d{4}$/,
       'fr-FR': /^(\+?33|0)[67]\d{8}$/,
-      'pt-PT': /^(\+351)?9[1236]\d{7}$/,
-      'el-GR': /^(\+30)?((2\d{9})|(69\d{8}))$/,
+      'pt-PT': /^(\+?351)?9[1236]\d{7}$/,
+      'el-GR': /^(\+?30)?(69\d{8})$/,
       'en-GB': /^(\+?44|0)7\d{9}$/,
       'en-US': /^(\+?1)?[2-9]\d{2}[2-9](?!11)\d{6}$/,
-      'en-ZM': /^(\+26)?09[567]\d{7}$/,
+      'en-ZM': /^(\+?26)?09[567]\d{7}$/,
       'ru-RU': /^(\+?7|8)?9\d{9}$/,
       'nb-NO': /^(\+?47)?[49]\d{7}$/,
       'nn-NO': /^(\+?47)?[49]\d{7}$/,
-      'vi-VN': /^(0|\+?84)?((1(2([0-9])|6([2-9])|88|99))|(9((?!5)[0-9])))([0-9]{7})$/,
-      'en-NZ': /^(\+?64|0)2\d{7,9}$/
+      'vi-VN': /^(\+?84|0)?((1(2([0-9])|6([2-9])|88|99))|(9((?!5)[0-9])))([0-9]{7})$/,
+      'en-NZ': /^(\+?64|0)2\d{7,9}$/,
+      'en-IN': /^(\+?91|0)?[789]\d{9}$/,
+      'es-ES': /^(\+?34)?(6\d{1}|7[1234])\d{7}$/,
+      'de-DE': /^(\+?49[ \.\-])?([\(]{1}[0-9]{1,6}[\)])?([0-9 \.\-\/]{3,20})((x|ext|extension)[ ]?[0-9]{1,4})?$/,
+      'fi-FI': /^(\+?358|0)\s?(4(0|1|2|4|5)?|50)\s?(\d\s?){4,8}\d$/
     };
 
     // from http://goo.gl/0ejHHW
@@ -39773,9 +40785,34 @@ function toBuffer (v) {
         }
     };
 
+    var depd = null;
+    validator.deprecation = function (msg) {
+        if (depd === null) {
+            if (typeof require !== 'function') {
+                return;
+            }
+            depd = require('depd')('validator');
+        }
+        depd(msg);
+    };
+
     validator.toString = function (input) {
-        if (typeof input === 'object' && input !== null && input.toString) {
-            input = input.toString();
+        if (typeof input !== 'string') {
+            // The library validates strings only. Currently it coerces all input to a string, but this
+            // will go away in an upcoming major version change. Print a deprecation notice for now
+            if (!validator.coerce) {
+                throw new Error('this library validates strings only');
+            }
+            validator.deprecation('you tried to validate a ' + typeof input + ' but this library ' +
+                    '(validator.js) validates strings only. Please update your code as this will ' +
+                    'be an error soon.');
+        }
+        if (typeof input === 'object' && input !== null) {
+            if (typeof input.toString === 'function') {
+                input = input.toString();
+            } else {
+                input = '[object Object]';
+            }
         } else if (input === null || typeof input === 'undefined' || (isNaN(input) && !input.length)) {
             input = '';
         }
@@ -39845,8 +40882,8 @@ function toBuffer (v) {
             user = user.replace(/\./g, '').toLowerCase();
         }
 
-        if (!validator.isByteLength(user, 0, 64) ||
-                !validator.isByteLength(domain, 0, 256)) {
+        if (!validator.isByteLength(user, {max: 64}) ||
+                !validator.isByteLength(domain, {max: 256})) {
             return false;
         }
 
@@ -39951,7 +40988,7 @@ function toBuffer (v) {
     };
 
     validator.isIP = function (str, version) {
-        version = validator.toString(version);
+        version = version ? version + '' : '';
         if (!version) {
             return validator.isIP(str, 4) || validator.isIP(str, 6);
         } else if (version === '4') {
@@ -40048,8 +41085,10 @@ function toBuffer (v) {
                 // disallow full-width chars
                 return false;
             }
-            if (part[0] === '-' || part[part.length - 1] === '-' ||
-                    part.indexOf('---') >= 0) {
+            if (part[0] === '-' || part[part.length - 1] === '-') {
+                return false;
+            }
+            if (part.indexOf('---') >= 0 && part.slice(0, 4) !== 'xn--') {
                 return false;
             }
         }
@@ -40060,12 +41099,14 @@ function toBuffer (v) {
         return (['true', 'false', '1', '0'].indexOf(str) >= 0);
     };
 
-    validator.isAlpha = function (str) {
-        return alpha.test(str);
+    validator.isAlpha = function (str, locale) {
+        locale = locale || 'en-US';
+        return alpha[locale].test(str);
     };
 
-    validator.isAlphanumeric = function (str) {
-        return alphanumeric.test(str);
+    validator.isAlphanumeric = function (str, locale) {
+        locale = locale || 'en-US';
+        return alphanumeric[locale].test(str);
     };
 
     validator.isNumeric = function (str) {
@@ -40106,20 +41147,35 @@ function toBuffer (v) {
     };
 
     validator.isDivisibleBy = function (str, num) {
-        return validator.toFloat(str) % validator.toInt(num) === 0;
+        return validator.toFloat(str) % parseInt(num, 10) === 0;
     };
 
     validator.isNull = function (str) {
         return str.length === 0;
     };
 
-    validator.isLength = function (str, min, max) {
+    validator.isLength = function (str, options) {
+        var min, max;
+        if (typeof(options) === 'object') {
+            min = options.min || 0;
+            max = options.max;
+        } else { // backwards compatibility: isLength(str, min [, max])
+            min = arguments[1];
+            max = arguments[2];
+        }
         var surrogatePairs = str.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g) || [];
         var len = str.length - surrogatePairs.length;
         return len >= min && (typeof max === 'undefined' || len <= max);
     };
-
-    validator.isByteLength = function (str, min, max) {
+    validator.isByteLength = function (str, options) {
+        var min, max;
+        if (typeof(options) === 'object') {
+            min = options.min || 0;
+            max = options.max;
+        } else { // backwards compatibility: isByteLength(str, min [, max])
+            min = arguments[1];
+            max = arguments[2];
+        }
         var len = encodeURI(str).split(/%..|./).length - 1;
         return len >= min && (typeof max === 'undefined' || len <= max);
     };
@@ -40152,7 +41208,11 @@ function toBuffer (v) {
             }
         } else {
             timezone = iso8601Parts[21];
-            if (!timezone || timezone === 'z' || timezone === 'Z') {
+            if (!timezone) {
+                // if no hour/minute was provided, the date is GMT
+                return !iso8601Parts[12] ? 0 : null;
+            }
+            if (timezone === 'z' || timezone === 'Z') {
                 return 0;
             }
             sign = iso8601Parts[22];
@@ -40172,6 +41232,7 @@ function toBuffer (v) {
         if (isNaN(normalizedDate)) {
             return false;
         }
+
         // normalizedDate is in the user's timezone. Apply the input
         // timezone offset to the date so that the year and day match
         // the input
@@ -40182,6 +41243,7 @@ function toBuffer (v) {
             normalizedDate = new Date(normalizedDate.getTime() +
                 60000 * timezoneDifference);
         }
+
         var day = String(normalizedDate.getDate());
         var dayOrYear, dayOrYearMatches, year;
         //check for valid double digits that could be late days
@@ -40194,6 +41256,7 @@ function toBuffer (v) {
         dayOrYear = dayOrYearMatches.map(function(digitString) {
             return digitString.match(/\d+/g)[0];
         }).join('/');
+
         year = String(normalizedDate.getFullYear()).slice(-2);
         if (dayOrYear === day || dayOrYear === year) {
             return true;
@@ -40295,7 +41358,7 @@ function toBuffer (v) {
     };
 
     validator.isISBN = function (str, version) {
-        version = validator.toString(version);
+        version = version ? version + '' : '';
         if (!version) {
             return validator.isISBN(str, 10) || validator.isISBN(str, 13);
         }
@@ -40538,4 +41601,4 @@ function toBuffer (v) {
 
 });
 
-},{}]},{},[1]);
+},{"depd":259}]},{},[1]);

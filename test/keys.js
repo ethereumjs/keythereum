@@ -460,7 +460,7 @@ describe("Dump private key", function () {
         },
         expected: {
             address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-            Crypto: {
+            crypto: {
                 cipher: "aes-128-ctr",
                 cipherparams: {
                     iv: "6087dab2f9fdbbfaddc31a909735c1e6"
@@ -489,7 +489,7 @@ describe("Dump private key", function () {
         },
         expected: {
             address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-            Crypto: {
+            crypto: {
                 cipher: "aes-128-ctr",
                 cipherparams: {
                     iv: "83dbcc02d8ccb40e466191a123791e0e"
@@ -515,7 +515,7 @@ describe("Export to file", function () {
 
     var keyObj = {
         address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-        Crypto: {
+        crypto: {
             cipher: "aes-128-ctr",
             ciphertext: "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
             cipherparams: {
@@ -586,7 +586,7 @@ describe("Import from keystore file", function () {
 
     var test = function (t) {
 
-        var label = "[" + t.expected.Crypto.kdf + "] import " + t.input.address + " from file";
+        var label = "[" + t.expected.crypto.kdf + "] import " + t.input.address + " from file";
 
         it(label, function (done) {
             this.timeout(TIMEOUT);
@@ -613,7 +613,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-ctr",
                     cipherparams: {
                         iv: "6087dab2f9fdbbfaddc31a909735c1e6"
@@ -640,7 +640,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-ctr",
                     ciphertext: "92d71fb22fd51f54837c61ba3c03a511d26505dfdc72fc6425deaead0103ec5b",
                     cipherparams: {
@@ -667,7 +667,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-ctr",
                     ciphertext: "92d71fb22fd51f54837c61ba3c03a511d26505dfdc72fc6425deaead0103ec5b",
                     cipherparams: {
@@ -694,7 +694,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "00efeeb535b1b1c408cca2ffd55b2b233269728c",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-ctr",
                     ciphertext: "8da6723594a551ca467d24fdfc92e9948505eb97e07be43564e61f9152ca3089",
                     cipherparams: {
@@ -722,7 +722,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "5a79b93487966d0eafb5264ca0408e66b7db9269",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-ctr",
                     ciphertext: "07f5ba9d3a90b8c33f57e903bba7541d42ccc1676a38195c65ff936e2437e7d9",
                     cipherparams: {
@@ -756,7 +756,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "ebb117ef11769e675e0245062a8e6296dfe42da4",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-cbc",
                     ciphertext: "edfa88ba7e67f26dd846e17fe5f1cabc0ef618949a5150287ac86b19dade146fb93df12716ae7e1b881f844738d60404",
                     cipherparams: {
@@ -785,7 +785,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "f0c4ee355432a7c7da12bdef04543723d110d591",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-cbc",
                     ciphertext: "5dcd8d2678a492a88a5d4929e51016accf8cd5d3831989a85011642a463e24656c41e43159e9a35e978b79355dcb052c",
                     cipherparams: {
@@ -814,7 +814,7 @@ describe("Import from keystore file", function () {
             },
             expected: {
                 address: "2c97f31d2db40aa57d0e6ca5fa8aedf7d99592db",
-                Crypto: {
+                crypto: {
                     cipher: "aes-128-cbc",
                     ciphertext: "b0d4523d2c49dcb0134fc5cd341e46099af70c32dbec776bf2d9665b8a5b1539ada61d1fe4962f4f536e1b980928e462",
                     cipherparams: {
@@ -843,7 +843,8 @@ describe("Import from keystore file", function () {
 describe("Recover plaintext private key from key object", function () {
 
     var test = function (t) {
-        var label = "[" + t.input.keyObject.Crypto.kdf + "] "+
+        var keyObjectCrypto = t.input.keyObject.Crypto || t.input.keyObject.crypto;
+        var label = "[" + keyObjectCrypto.kdf + "] "+
             "recover key for " + t.input.keyObject.address;
 
         it(label, function (done) {
@@ -894,7 +895,61 @@ describe("Recover plaintext private key from key object", function () {
             password: "testpassword",
             keyObject: {
                 address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+                crypto: {
+                    cipher: "aes-128-ctr",
+                    cipherparams: {
+                        iv: "6087dab2f9fdbbfaddc31a909735c1e6"
+                    },
+                    ciphertext: "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+                    kdf: "pbkdf2",
+                    kdfparams: {
+                        c: 262144,
+                        dklen: 32,
+                        prf: "hmac-sha256",
+                        salt: "ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd"
+                    },
+                    mac: "517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2"
+                },
+                id: "e13b209c-3b2f-4327-bab0-3bef2e51630d",
+                version: 3
+            }
+        },
+        expected: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d"
+    });
+
+    test({
+        input: {
+            password: "testpassword",
+            keyObject: {
+                address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
                 Crypto: {
+                    cipher: "aes-128-ctr",
+                    cipherparams: {
+                        iv: "83dbcc02d8ccb40e466191a123791e0e"
+                    },
+                    ciphertext: "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+                    kdf: "scrypt",
+                    kdfparams: {
+                        dklen: 32,
+                        n: 262144,
+                        r: 1,
+                        p: 8,
+                        salt: "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+                    },
+                    mac: "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+                },
+                version: 3
+            }
+        },
+        expected: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d"
+    });
+
+    test({
+        input: {
+            password: "testpassword",
+            keyObject: {
+                address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+                crypto: {
                     cipher: "aes-128-ctr",
                     cipherparams: {
                         iv: "83dbcc02d8ccb40e466191a123791e0e"
