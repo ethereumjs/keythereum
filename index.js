@@ -16,6 +16,7 @@ var ecdsa = new (require("elliptic").ec)("secp256k1");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt")(280000000);
+var scryptAsync = require("scrypt-async");
 
 // convert string to buffer
 function str2buf(str, enc) {
@@ -175,98 +176,129 @@ module.exports = {
      * @return {buffer} Secret key derived from password.
      */
     deriveKey: function (password, salt, options, cb) {
-        if (password && salt) {
-            options = options || {};
-            options.kdfparams = options.kdfparams || {};
+        if (!password || !salt) {
+            return;
+        }
 
-            // convert strings to buffers
-            if (password.constructor === String)
-                password = str2buf(password, "utf8");
-            if (salt.constructor === String)
-                salt = str2buf(salt);
+        options = options || {};
+        options.kdfparams = options.kdfparams || {};
 
-            // use scrypt as key derivation function
-            if (options.kdf === "scrypt") {
-
-                try {
-
-                    if (isFunction(cb)) {
-
-                        setTimeout(function () {
-                            cb(new Buffer(
-                                scrypt.to_hex(scrypt.crypto_scrypt(
-                                    password,
-                                    salt,
-                                    options.kdfparams.n || this.constants.scrypt.n,
-                                    options.kdfparams.r || this.constants.scrypt.r,
-                                    options.kdfparams.p || this.constants.scrypt.p,
-                                    options.kdfparams.dklen || this.constants.scrypt.dklen
-                                )
-                            ), "hex"));
-                        }.bind(this), 0);
-
-                    } else {
-
-                        return new Buffer(
-                            scrypt.to_hex(scrypt.crypto_scrypt(
-                                password,
-                                salt,
-                                options.kdfparams.n || this.constants.scrypt.n,
-                                options.kdfparams.r || this.constants.scrypt.r,
-                                options.kdfparams.p || this.constants.scrypt.p,
-                                options.kdfparams.dklen || this.constants.scrypt.dklen
-                            )
-                        ), "hex");
-
-                    }
-
-                } catch (ex) {
-                    if (isFunction(cb)) {
-                        cb(ex);
-                    } else {
-                        return ex;
-                    }
-                }
-
-            // use default key derivation function (PBKDF2)
-            } else {
-
-                var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
-                if (prf === "hmac-sha256") prf = "sha256";
-
-                if (isFunction(cb)) {
-
-                    crypto.pbkdf2(
-                        password,
-                        salt,
-                        options.kdfparams.c || this.constants.pbkdf2.c,
-                        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-                        prf,
-                        function (ex, derivedKey) {
-                            if (ex) return ex;
-                            cb(derivedKey);
-                        }
-                    );
-
-                } else {
-                    
-                    try {
-                        return crypto.pbkdf2Sync(
-                            password,
-                            salt,
-                            options.kdfparams.c || this.constants.pbkdf2.c,
-                            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-                            prf
-                        );
-
-                    } catch (ex) {
-                        return ex;
-                    }
-                }
-            }
+        // convert strings to buffers
+        if (password.constructor === String)
+            password = str2buf(password, "utf8");
+        if (salt.constructor === String)
+            salt = str2buf(salt);
+        
+        if (isFunction(cb)) {
+            return module.exports.deriveKeyAsync(password, salt, options, cb);
+        }
+        else {
+            return module.exports.deriveKeySync(password, salt, options);
         }
     },
 
+    deriveKeySync: function (password, salt, options) {
+        if (!password || !salt) {
+            return;
+        }
+        
+        // use scrypt as key derivation function
+        if (options.kdf === "scrypt") {
+
+            try {
+                return new Buffer(
+                    scrypt.to_hex(scrypt.crypto_scrypt(
+                        password,
+                        salt,
+                        options.kdfparams.n || this.constants.scrypt.n,
+                        options.kdfparams.r || this.constants.scrypt.r,
+                        options.kdfparams.p || this.constants.scrypt.p,
+                        options.kdfparams.dklen || this.constants.scrypt.dklen
+                    )
+                ), "hex");
+
+            } catch (ex) {
+                return ex;
+            }
+
+        // use default key derivation function (PBKDF2)
+        } else {
+            var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+            if (prf === "hmac-sha256") prf = "sha256";
+
+            try {
+                return crypto.pbkdf2Sync(
+                    password,
+                    salt,
+                    options.kdfparams.c || this.constants.pbkdf2.c,
+                    options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                    prf
+                );
+
+            } catch (ex) {
+                return ex;
+            }
+        }
+    },
+    
+    deriveKeyAsync: function (password, salt, options, cb) {
+        if (!password || !salt) {
+            return cb();
+        }
+        
+        // use scrypt as key derivation function
+        if (options.kdf === "scrypt") {
+            var n = options.kdfparams.n || this.constants.scrypt.n,
+                r = options.kdfparams.r || this.constants.scrypt.r,
+                p = options.kdfparams.p || this.constants.scrypt.p,
+                len = options.kdfparams.dklen || this.constants.scrypt.dklen,
+                scryptChunkSize = 100;
+                
+            if (p === 1) {
+                scryptAsync(
+                    password, 
+                    salt, 
+                    Math.log2(options.kdfparams.n || this.constants.scrypt.n), 
+                    options.kdfparams.r || this.constants.scrypt.r, 
+                    options.kdfparams.dklen || this.constants.scrypt.dklen, 
+                    !cb ? 0 : options.kdfparams.scryptChunkSize || scryptChunkSize, 
+                    (derivedKey) => {                   
+                        cb(derivedKey);
+                }, 'hex');                
+            }
+            else {
+                setTimeout(function () {
+                    cb(new Buffer(
+                        scrypt.to_hex(scrypt.crypto_scrypt(
+                            password,
+                            salt,
+                            n,
+                            r,
+                            p,
+                            len
+                        )
+                    ), "hex"));
+                }.bind(this), 0);
+            }
+        }
+        else {
+            var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+            if (prf === "hmac-sha256") prf = "sha256";      
+            
+            crypto.pbkdf2(
+                password,
+                salt,
+                options.kdfparams.c || this.constants.pbkdf2.c,
+                options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                prf,
+                function (ex, derivedKey) {
+                    if (ex) return ex;
+                    cb(derivedKey);
+                }
+            );            
+        }
+    },
+    
     /**
      * Generate random numbers for private key, initialization vector,
      * and salt (for key derivation).
