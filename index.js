@@ -251,20 +251,18 @@ module.exports = {
             var n = options.kdfparams.n || this.constants.scrypt.n,
                 r = options.kdfparams.r || this.constants.scrypt.r,
                 p = options.kdfparams.p || this.constants.scrypt.p,
-                len = options.kdfparams.dklen || this.constants.scrypt.dklen,
-                scryptChunkSize = 100;
+                dklen = options.kdfparams.dklen || this.constants.scrypt.dklen,
+                scryptChunkSize = options.kdfparams.scryptChunkSize || 100;
                 
             if (p === 1) {
                 scryptAsync(
                     password, 
                     salt, 
-                    Math.log2(options.kdfparams.n || this.constants.scrypt.n), 
-                    options.kdfparams.r || this.constants.scrypt.r, 
-                    options.kdfparams.dklen || this.constants.scrypt.dklen, 
-                    !cb ? 0 : options.kdfparams.scryptChunkSize || scryptChunkSize, 
-                    (derivedKey) => {                   
-                        cb(derivedKey);
-                }, 'hex');                
+                    Math.log2(n), 
+                    r, 
+                    dklen, 
+                    scryptChunkSize, 
+                    cb, 'hex');
             }
             else {
                 setTimeout(function () {
@@ -275,7 +273,7 @@ module.exports = {
                             n,
                             r,
                             p,
-                            len
+                            dklen
                         )
                     ), "hex"));
                 }.bind(this), 0);
