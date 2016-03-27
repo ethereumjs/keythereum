@@ -971,4 +971,30 @@ describe("Recover plaintext private key from key object", function () {
         expected: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d"
     });
 
+    test({
+        input: {
+            password: "testpass",
+            keyObject: {
+                address: "e1e212c353f7a682693c198ba5ff85849f8300cc",
+                Crypto: {
+                    cipher: "aes-128-ctr",
+                    ciphertext: "008baf806bb0f855fbc35fcf22cab732315a368e6e6d529b50dcbc60c955d349",
+                    cipherparams: {iv: "92a01f397d5c2ce4c2964c36a9754f69"},
+                    kdf: "scrypt",
+                    kdfparams: {
+                      dklen: 32,
+                      n: 262144,
+                      p: 1,
+                      r: 8,
+                      salt: "7deda03653eb9d767a7feb7ab7ae82a17559954f7ae62fef93f7bc25813c3ccf"
+                    },
+                    mac: "2ff9d7b27b57b856f92b5396819ba18144e434665f945295d2ea3e354c4f6093"
+                },
+                id: "64c495d9-05ca-4d3b-8c95-94060df83544",
+                version: 3
+            }
+        },
+        expected: "6445042b8e8cc121fb6a8985606a84b4cb07dac6dfb3633e769ec27dd2370984"
+    });
+
 });
