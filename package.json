@@ -27,7 +27,6 @@
     "elliptic": "^5.1.0",
     "ethereumjs-util": "^1.3.6",
     "node-uuid": "^1.4.3",
-    "scrypt-async": "^1.2.0",
     "validator": "^4.0.2"
   },
   "devDependencies": {
