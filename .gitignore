@@ -2,7 +2,6 @@ node_modules
 *.log
 coverage
 overflow
-*.html
 data
 test/fixtures/nodekey
 test/fixtures/.password
