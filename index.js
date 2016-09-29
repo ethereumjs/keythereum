@@ -15,7 +15,7 @@ var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
-var scrypt = require("./lib/scrypt")(280000000);
+var scrypt = require("./lib/scrypt");
 
 // convert string to buffer
 function str2buf(str, enc) {
