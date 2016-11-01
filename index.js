@@ -10,6 +10,7 @@ var NODE_JS = (typeof module !== "undefined") && process && !process.browser;
 var path = (NODE_JS) ? require("path") : null;
 var fs = (NODE_JS) ? require("fs") : null;
 var crypto = require("crypto");
+var sjcl = require("sjcl");
 var uuid = require("node-uuid");
 var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
@@ -51,6 +52,8 @@ function isFunction(f) {
 module.exports = {
 
     browser: !NODE_JS,
+
+    crypto: crypto,
 
     constants: {
 
@@ -175,6 +178,7 @@ module.exports = {
      * @return {buffer} Secret key derived from password.
      */
     deriveKey: function (password, salt, options, cb) {
+        var self = this;
         if (password && salt) {
             options = options || {};
             options.kdfparams = options.kdfparams || {};
@@ -197,13 +201,13 @@ module.exports = {
                                 scrypt.to_hex(scrypt.crypto_scrypt(
                                     password,
                                     salt,
-                                    options.kdfparams.n || this.constants.scrypt.n,
-                                    options.kdfparams.r || this.constants.scrypt.r,
-                                    options.kdfparams.p || this.constants.scrypt.p,
-                                    options.kdfparams.dklen || this.constants.scrypt.dklen
+                                    options.kdfparams.n || self.constants.scrypt.n,
+                                    options.kdfparams.r || self.constants.scrypt.r,
+                                    options.kdfparams.p || self.constants.scrypt.p,
+                                    options.kdfparams.dklen || self.constants.scrypt.dklen
                                 )
                             ), "hex"));
-                        }.bind(this), 0);
+                        }, 0);
 
                     } else {
 
@@ -236,28 +240,49 @@ module.exports = {
 
                 if (isFunction(cb)) {
 
-                    crypto.pbkdf2(
-                        password,
-                        salt,
-                        options.kdfparams.c || this.constants.pbkdf2.c,
-                        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-                        prf,
-                        function (ex, derivedKey) {
-                            if (ex) return ex;
-                            cb(derivedKey);
-                        }
-                    );
-
-                } else {
-                    
-                    try {
-                        return crypto.pbkdf2Sync(
+                    if (!this.crypto.pbkdf2) {
+                        setTimeout(function () {
+                            cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+                                password.toString('utf8'),
+                                sjcl.codec.hex.toBits(salt.toString("hex")),
+                                options.kdfparams.c || self.constants.pbkdf2.c,
+                                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+                            )), "hex"));
+                        }, 0);
+                    } else {
+                        crypto.pbkdf2(
                             password,
                             salt,
                             options.kdfparams.c || this.constants.pbkdf2.c,
                             options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-                            prf
+                            prf,
+                            function (ex, derivedKey) {
+                                if (ex) return ex;
+                                cb(derivedKey);
+                            }
                         );
+                    }
+
+                } else {
+
+                    try {
+
+                        if (!this.crypto.pbkdf2Sync) {
+                            return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+                                password.toString('utf8'),
+                                sjcl.codec.hex.toBits(salt.toString("hex")),
+                                options.kdfparams.c || self.constants.pbkdf2.c,
+                                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+                            )), "hex");
+                        } else {
+                            return crypto.pbkdf2Sync(
+                                password,
+                                salt,
+                                options.kdfparams.c || this.constants.pbkdf2.c,
+                                options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+                                prf
+                            );
+                        }
 
                     } catch (ex) {
                         return ex;

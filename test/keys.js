@@ -325,8 +325,22 @@ describe("Key derivation", function () {
 
     var test = function (t) {
 
-        it(t.input.kdf, function (done) {
+        var pbkdf2, pbkdf2Sync;
+
+        before(function () {
+            pbkdf2 = keythereum.crypto.pbkdf2;
+            pbkdf2Sync = keythereum.crypto.pbkdf2Sync;
+        });
+
+        after(function () {
+            keythereum.crypto.pbkdf2 = pbkdf2;
+            keythereum.crypto.pbkdf2Sync = pbkdf2Sync;
+        });
+
+        it("using crypto: " + t.input.kdf, function (done) {
             this.timeout(TIMEOUT);
+            keythereum.crypto.pbkdf2 = pbkdf2;
+            keythereum.crypto.pbkdf2Sync = pbkdf2Sync;
 
             // synchronous
             var derivedKey = keythereum.deriveKey(
@@ -355,7 +369,38 @@ describe("Key derivation", function () {
                 );
             }
         });
+        it("using sjcl: " + t.input.kdf, function (done) {
+            this.timeout(TIMEOUT);
+            keythereum.crypto.pbkdf2 = undefined;
+            keythereum.crypto.pbkdf2Sync = undefined;
 
+            // synchronous
+            var derivedKey = keythereum.deriveKey(
+                t.input.password,
+                t.input.salt,
+                { kdf: t.input.kdf }
+            );
+            if (derivedKey.error) {
+                done(derivedKey);
+            } else {
+                assert.strictEqual(derivedKey.toString("hex"), t.expected);
+
+                // asynchronous
+                keythereum.deriveKey(
+                    t.input.password,
+                    t.input.salt,
+                    { kdf: t.input.kdf },
+                    function (derivedKey) {
+                        if (derivedKey.error) {
+                            done(derivedKey);
+                        } else {
+                            assert.strictEqual(derivedKey.toString("hex"), t.expected);
+                            done();
+                        }
+                    }
+                );
+            }
+        });
     };
 
     test({

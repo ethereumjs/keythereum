@@ -36,6 +36,8 @@
     "eqnull": false,
     "predef": [
         "describe",
-        "it"
+        "it",
+        "before",
+        "after"
     ]
 }

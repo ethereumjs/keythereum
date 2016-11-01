@@ -16,7 +16,7 @@ var checkKeyObj = require("./checkKeyObj");
 // geth.debug = true;
 
 var NUM_TESTS = 1000;
-var TIMEOUT = 5000;
+var TIMEOUT = 10000;
 var DATADIR = join(__dirname, "fixtures");
 
 var options = {
@@ -40,6 +40,9 @@ function createEthereumKey(passphrase) {
 
 keythereum.constants.quiet = true;
 
+var pbkdf2 = keythereum.crypto.pbkdf2;
+var pbkdf2Sync = keythereum.crypto.pbkdf2Sync;
+
 describe("Unlock randomly-generated accounts in geth", function () {
 
     var test = function (t) {
@@ -49,6 +52,14 @@ describe("Unlock randomly-generated accounts in geth", function () {
 
         it(label, function (done) {
             this.timeout(TIMEOUT*2);
+
+            if (t.sjcl) {
+                keythereum.crypto.pbkdf2 = undefined;
+                keythereum.crypto.pbkdf2Sync = undefined;
+            } else {
+                keythereum.crypto.pbkdf2 = pbkdf2;
+                keythereum.crypto.pbkdf2Sync = pbkdf2Sync;
+            }
 
             var json = createEthereumKey(t.password);
             assert.isNotNull(json);
@@ -112,6 +123,13 @@ describe("Unlock randomly-generated accounts in geth", function () {
         keythereum.constants.scrypt.n = hashRounds;
 
         test({
+            sjcl: false,
+            password: password.toString("hex"),
+            hashRounds: hashRounds,
+            kdf: "pbkdf2"
+        });
+        test({
+            sjcl: true,
             password: password.toString("hex"),
             hashRounds: hashRounds,
             kdf: "pbkdf2"
@@ -123,6 +141,13 @@ describe("Unlock randomly-generated accounts in geth", function () {
         });
 
         test({
+            sjcl: false,
+            password: password.toString("hex"),
+            hashRounds: hashRounds,
+            kdf: "pbkdf2"
+        });
+        test({
+            sjcl: true,
             password: password.toString("hex"),
             hashRounds: hashRounds,
             kdf: "pbkdf2"
