@@ -2,6 +2,10 @@ sudo: false
 
 language: node_js
 
+branches:
+  only:
+    - master
+
 env:
   - CXX=g++-4.8
 
