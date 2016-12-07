@@ -26182,12 +26182,13 @@ module.exports={
         "spec": ">=6.0.0 <7.0.0",
         "type": "range"
       },
-      "/Users/antoine/Dev/3rd-party/keythereum/node_modules/browserify-sign"
+      "/home/jack/src/keythereum/node_modules/browserify-sign"
     ]
   ],
   "_from": "elliptic@>=6.0.0 <7.0.0",
   "_id": "elliptic@6.3.2",
   "_inCache": true,
+  "_installable": true,
   "_location": "/browserify-sign/elliptic",
   "_nodeVersion": "6.3.0",
   "_npmOperationalInternal": {
@@ -26216,7 +26217,7 @@ module.exports={
   "_shasum": "e4c81e0829cf0a65ab70e998b8232723b5c1bc48",
   "_shrinkwrap": null,
   "_spec": "elliptic@^6.0.0",
-  "_where": "/Users/antoine/Dev/3rd-party/keythereum/node_modules/browserify-sign",
+  "_where": "/home/jack/src/keythereum/node_modules/browserify-sign",
   "author": {
     "name": "Fedor Indutny",
     "email": "fedor@indutny.com"
@@ -28890,12 +28891,13 @@ module.exports={
         "spec": ">=6.0.0 <7.0.0",
         "type": "range"
       },
-      "/Users/antoine/Dev/3rd-party/keythereum/node_modules/create-ecdh"
+      "/home/jack/src/keythereum/node_modules/create-ecdh"
     ]
   ],
   "_from": "elliptic@>=6.0.0 <7.0.0",
   "_id": "elliptic@6.3.2",
   "_inCache": true,
+  "_installable": true,
   "_location": "/create-ecdh/elliptic",
   "_nodeVersion": "6.3.0",
   "_npmOperationalInternal": {
@@ -28924,7 +28926,7 @@ module.exports={
   "_shasum": "e4c81e0829cf0a65ab70e998b8232723b5c1bc48",
   "_shrinkwrap": null,
   "_spec": "elliptic@^6.0.0",
-  "_where": "/Users/antoine/Dev/3rd-party/keythereum/node_modules/create-ecdh",
+  "_where": "/home/jack/src/keythereum/node_modules/create-ecdh",
   "author": {
     "name": "Fedor Indutny",
     "email": "fedor@indutny.com"
@@ -33197,12 +33199,13 @@ module.exports={
         "spec": "5.1.0",
         "type": "version"
       },
-      "/Users/antoine/Dev/3rd-party/keythereum"
+      "/home/jack/src/keythereum"
     ]
   ],
   "_from": "elliptic@5.1.0",
   "_id": "elliptic@5.1.0",
   "_inCache": true,
+  "_installable": true,
   "_location": "/elliptic",
   "_nodeVersion": "2.3.4",
   "_npmUser": {
@@ -33228,7 +33231,7 @@ module.exports={
   "_shasum": "5658dfa7625a6a8fc687a5b8f249376bb271e6e9",
   "_shrinkwrap": null,
   "_spec": "elliptic@5.1.0",
-  "_where": "/Users/antoine/Dev/3rd-party/keythereum",
+  "_where": "/home/jack/src/keythereum",
   "author": {
     "name": "Fedor Indutny",
     "email": "fedor@indutny.com"
