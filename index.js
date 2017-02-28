@@ -555,6 +555,10 @@ module.exports = {
 
         keystore = keystore || "keystore";
         outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
+
+        // Windows does not permit ":" in filenames, replace all with "-"
+        if (process.platform === "win32") outfile = outfile.split(":").join("-");
+
         outpath = path.join(keystore, outfile);
         json = JSON.stringify(keyObject);
 
@@ -583,7 +587,7 @@ module.exports = {
      * @return {Object} Keystore data file's contents.
      */
     importFromFile: function (address, datadir, cb) {
-        address = address.replace('0x', '');
+        address = address.replace("0x", "");
 
         function findKeyfile(keystore, address, files) {
             var filepath = null;
