@@ -133,7 +133,7 @@ module.exports = {
    */
   privateKeyToAddress: function (privateKey) {
     if (privateKey.constructor === String) privateKey = str2buf(privateKey);
-    return "0x" + pubToAddress(new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"))).toString("hex");
+    return "0x" + pubToAddress(new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr")), true).toString("hex");
   },
 
   /**

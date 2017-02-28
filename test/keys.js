@@ -29,7 +29,7 @@ var privateKey = crypto.randomBytes(32);
 
 // derive secp256k1 ECDSA public key and address from private key
 var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
-var address = pubToAddress(publicKey).toString("hex");
+var address = pubToAddress(publicKey, true).toString("hex");
 
 describe("Private key recovery", function () {
 
