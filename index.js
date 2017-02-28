@@ -16,7 +16,7 @@ var validator = require("validator");
 var ecdsa = new (require("elliptic").ec)("secp256k1");
 var pubToAddress = require("ethereumjs-util").pubToAddress;
 var keccak = require("./lib/keccak");
-var scrypt = require("./lib/scrypt")(280000000);
+var scrypt = require("./lib/scrypt");
 
 // convert string to buffer
 function str2buf(str, enc) {
@@ -77,6 +77,7 @@ module.exports = {
       prf: "hmac-sha256"
     },
     scrypt: {
+      memory: 280000000,
       dklen: 32,
       n: 65536,
       r: 1,
@@ -176,37 +177,32 @@ module.exports = {
 
       // use scrypt as key derivation function
       if (options.kdf === "scrypt") {
+        if (scrypt.constructor === Function) {
+          scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
+        }
         if (isFunction(cb)) {
             setTimeout(function () {
-              cb(new Buffer(
-                scrypt.to_hex(scrypt.crypto_scrypt(
-                  password,
-                  salt,
-                  options.kdfparams.n || self.constants.scrypt.n,
-                  options.kdfparams.r || self.constants.scrypt.r,
-                  options.kdfparams.p || self.constants.scrypt.p,
-                  options.kdfparams.dklen || self.constants.scrypt.dklen
-                )
-              ), "hex"));
+              cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+                password,
+                salt,
+                options.kdfparams.n || self.constants.scrypt.n,
+                options.kdfparams.r || self.constants.scrypt.r,
+                options.kdfparams.p || self.constants.scrypt.p,
+                options.kdfparams.dklen || self.constants.scrypt.dklen
+              )), "hex"));
             }, 0);
           } else {
             try {
-              return new Buffer(
-                scrypt.to_hex(scrypt.crypto_scrypt(
-                  password,
-                  salt,
-                  options.kdfparams.n || this.constants.scrypt.n,
-                  options.kdfparams.r || this.constants.scrypt.r,
-                  options.kdfparams.p || this.constants.scrypt.p,
-                  options.kdfparams.dklen || this.constants.scrypt.dklen
-                )
-              ), "hex");
+              return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+                password,
+                salt,
+                options.kdfparams.n || this.constants.scrypt.n,
+                options.kdfparams.r || this.constants.scrypt.r,
+                options.kdfparams.p || this.constants.scrypt.p,
+                options.kdfparams.dklen || this.constants.scrypt.dklen
+              )), "hex");
             } catch (ex) {
-              if (isFunction(cb)) {
-                cb(ex);
-              } else {
-                return ex;
-              }
+              return ex;
             }
           }
 
@@ -214,30 +210,7 @@ module.exports = {
       } else {
         var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
         if (prf === "hmac-sha256") prf = "sha256";
-        if (isFunction(cb)) {
-          if (!this.crypto.pbkdf2) {
-            setTimeout(function () {
-              cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-                password.toString('utf8'),
-                sjcl.codec.hex.toBits(salt.toString("hex")),
-                options.kdfparams.c || self.constants.pbkdf2.c,
-                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-              )), "hex"));
-            }, 0);
-          } else {
-            crypto.pbkdf2(
-              password,
-              salt,
-              options.kdfparams.c || this.constants.pbkdf2.c,
-              options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-              prf,
-              function (ex, derivedKey) {
-                if (ex) return ex;
-                cb(derivedKey);
-              }
-            );
-          }
-        } else {
+        if (!isFunction(cb)) {
           try {
             if (!this.crypto.pbkdf2Sync) {
               return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
@@ -246,18 +219,39 @@ module.exports = {
                 options.kdfparams.c || self.constants.pbkdf2.c,
                 (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
               )), "hex");
-            } else {
-              return crypto.pbkdf2Sync(
-                password,
-                salt,
-                options.kdfparams.c || this.constants.pbkdf2.c,
-                options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-                prf
-              );
             }
+            return crypto.pbkdf2Sync(
+              password,
+              salt,
+              options.kdfparams.c || this.constants.pbkdf2.c,
+              options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+              prf
+            );
           } catch (ex) {
             return ex;
           }
+        }
+        if (!this.crypto.pbkdf2) {
+          setTimeout(function () {
+            cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+              password.toString('utf8'),
+              sjcl.codec.hex.toBits(salt.toString("hex")),
+              options.kdfparams.c || self.constants.pbkdf2.c,
+              (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+            )), "hex"));
+          }, 0);
+        } else {
+          crypto.pbkdf2(
+            password,
+            salt,
+            options.kdfparams.c || this.constants.pbkdf2.c,
+            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+            prf,
+            function (ex, derivedKey) {
+              if (ex) return cb(ex);
+              cb(derivedKey);
+            }
+          );
         }
       }
     }
@@ -420,9 +414,8 @@ module.exports = {
     var self = this;
     var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
+    // verify that message authentication codes match, then decrypt
     function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
-
-      // verify that message authentication codes match
       var mac = self.getMAC(derivedKey, ciphertext);
       if (mac === keyObjectCrypto.mac) {
         return new Buffer(self.decrypt(ciphertext, derivedKey.slice(0, 16), iv), "hex");
