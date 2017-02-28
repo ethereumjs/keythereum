@@ -132,13 +132,8 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-
-    if (privateKey.constructor === String)
-      privateKey = str2buf(privateKey);
-
-    return "0x" + pubToAddress(new Buffer(
-      ecdsa.keyFromPrivate(privateKey).getPublic("arr")
-    )).toString("hex");
+    if (privateKey.constructor === String) privateKey = str2buf(privateKey);
+    return "0x" + pubToAddress(new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"))).toString("hex");
   },
 
   /**
@@ -151,18 +146,10 @@ module.exports = {
    * @return {string} Hex-encoded MAC.
    */
   getMAC: function (derivedKey, ciphertext) {
-    if (derivedKey !== undefined && derivedKey !== null &&
-      ciphertext !== undefined && ciphertext !== null)
-    {
-      if (derivedKey.constructor === Buffer)
-        derivedKey = derivedKey.toString("hex");
-
-      if (ciphertext.constructor === Buffer)
-        ciphertext = ciphertext.toString("hex");
-
-      return keccak(
-        hex2utf16le(derivedKey.slice(32, 64) + ciphertext)
-      );
+    if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
+      if (derivedKey.constructor === Buffer) derivedKey = derivedKey.toString("hex");
+      if (ciphertext.constructor === Buffer) ciphertext = ciphertext.toString("hex");
+      return keccak(hex2utf16le(derivedKey.slice(32, 64) + ciphertext));
     }
   },
 
@@ -310,7 +297,6 @@ module.exports = {
                 if (ex) {
                   cb(ex);
                 } else {
-
                   cb({
                     privateKey: privateKey,
                     iv: iv,
@@ -319,10 +305,8 @@ module.exports = {
                 }
               });
             }
-
           }); // crypto.randomBytes
         }
-
       }); // crypto.randomBytes
 
     // synchronous key generation
@@ -360,11 +344,7 @@ module.exports = {
     options.kdfparams = options.kdfparams || {};
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = new Buffer(this.encrypt(
-      privateKey,
-      derivedKey.slice(0, 16),
-      iv
-    ), "base64").toString("hex");
+    ciphertext = new Buffer(this.encrypt(privateKey, derivedKey.slice(0, 16), iv), "base64").toString("hex");
 
     keyObject = {
       address: this.privateKeyToAddress(privateKey).slice(2),
@@ -419,35 +399,15 @@ module.exports = {
     if (iv.constructor === String) iv = str2buf(iv);
     if (privateKey.constructor === String) privateKey = str2buf(privateKey);
 
-    // asynchronous if callback provided
-    if (isFunction(cb)) {
-
-      this.deriveKey(
-        password,
-        salt,
-        options,
-        function (derivedKey) {
-          cb(this.marshal(
-            derivedKey,
-            privateKey,
-            salt,
-            iv,
-            options
-          ));
-        }.bind(this)
-      );
-
-    // synchronous if no callback
-    } else {
-
-      return this.marshal(
-        this.deriveKey(password, salt, options),
-        privateKey,
-        salt,
-        iv,
-        options
-      );
+    // synchronous if no callback provided
+    if (!isFunction(cb)) {
+      return this.marshal(this.deriveKey(password, salt, options), privateKey, salt, iv, options);
     }
+
+    // asynchronous if callback provided
+    this.deriveKey(password, salt, options, function (derivedKey) {
+      cb(this.marshal(derivedKey, privateKey, salt, iv, options));
+    }.bind(this));
   },
 
   /**
@@ -465,13 +425,7 @@ module.exports = {
       // verify that message authentication codes match
       var mac = self.getMAC(derivedKey, ciphertext);
       if (mac === keyObjectCrypto.mac) {
-
-        return new Buffer(self.decrypt(
-          ciphertext,
-          derivedKey.slice(0, 16),
-          iv
-        ), "hex");
-      
+        return new Buffer(self.decrypt(ciphertext, derivedKey.slice(0, 16), iv), "hex");
       } else {
         throw new Error("message authentication code mismatch");
       }
@@ -502,18 +456,12 @@ module.exports = {
     }
 
     // derive secret key from password
-    if (isFunction(cb)) {
-      this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
-        cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
-      });
-    } else {
-      return verifyAndDecrypt(
-        this.deriveKey(password, salt, keyObjectCrypto),
-        salt,
-        iv,
-        ciphertext
-      );
+    if (!isFunction(cb)) {
+      return verifyAndDecrypt(this.deriveKey(password, salt, keyObjectCrypto), salt, iv, ciphertext);
     }
+    this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
+      cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
+    });
   },
 
   /**
@@ -555,7 +503,7 @@ module.exports = {
       instructions(outpath);
       return outpath;
     }
-    return fs.writeFile(outpath, json, function (ex) {
+    fs.writeFile(outpath, json, function (ex) {
       if (ex) throw ex;
       instructions(outpath);
       cb(outpath);
@@ -587,28 +535,23 @@ module.exports = {
       return filepath;
     }
 
-    if (this.browser) {
-      throw new Error("method only available in Node.js");
-    }
+    if (this.browser) throw new Error("method only available in Node.js");
     datadir = datadir || path.join(process.env.HOME, ".ethereum");
     var keystore = path.join(datadir, "keystore");
     if (!isFunction(cb)) {
       var filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
-      if (filepath) {
-        return JSON.parse(fs.readFileSync(filepath));
-      } else {
-        throw new Error(
-          "could not find key file for address " + address
-        );
+      if (!filepath) {
+        throw new Error("could not find key file for address " + address);
       }
+      return JSON.parse(fs.readFileSync(filepath));
     }
     fs.readdir(keystore, function (ex, files) {
       if (ex) return cb(ex);
       var filepath = findKeyfile(keystore, address, files);
-      if (filepath) return cb(JSON.parse(fs.readFileSync(filepath)));
-      return new Error(
-        "could not find key file for address " + address
-      );
+      if (!filepath) {
+        return new Error("could not find key file for address " + address);
+      }
+      return cb(JSON.parse(fs.readFileSync(filepath)));
     });
   }
 
