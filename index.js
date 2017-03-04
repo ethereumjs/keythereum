@@ -438,7 +438,8 @@ module.exports = {
         n: keyObjectCrypto.kdfparams.n,
         r: keyObjectCrypto.kdfparams.r,
         p: keyObjectCrypto.kdfparams.p,
-        dklen: keyObjectCrypto.kdfparams.dklen
+        dklen: keyObjectCrypto.kdfparams.dklen,
+        memory: 280000000
       };
     } else {
       if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
