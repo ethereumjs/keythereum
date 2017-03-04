@@ -439,16 +439,13 @@ module.exports = {
 
     if (iv && iv.constructor === String) iv = str2buf(iv);
     if (salt && salt.constructor === String) salt = str2buf(salt);
-    if (ciphertext && ciphertext.constructor === String)
-      ciphertext = str2buf(ciphertext);
+    if (ciphertext && ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
 
     if (keyObjectCrypto.kdf === "scrypt") {
-      this.constants.scrypt = {
-        n: keyObjectCrypto.kdfparams.n,
-        r: keyObjectCrypto.kdfparams.r,
-        p: keyObjectCrypto.kdfparams.p,
-        dklen: keyObjectCrypto.kdfparams.dklen
-      };
+      this.constants.scrypt.n = keyObjectCrypto.kdfparams.n;
+      this.constants.scrypt.r = keyObjectCrypto.kdfparams.r;
+      this.constants.scrypt.p = keyObjectCrypto.kdfparams.p;
+      this.constants.scrypt.dklen = keyObjectCrypto.kdfparams.dklen;
     } else {
       if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
         throw new Error("PBKDF2 only supported with HMAC-SHA256");

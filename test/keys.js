@@ -889,8 +889,7 @@ describe("Recover plaintext private key from key object", function () {
 
   var test = function (t) {
     var keyObjectCrypto = t.input.keyObject.Crypto || t.input.keyObject.crypto;
-    var label = "[" + keyObjectCrypto.kdf + "] "+
-      "recover key for " + t.input.keyObject.address;
+    var label = "[" + keyObjectCrypto.kdf + "] "+ "recover key for " + t.input.keyObject.address;
 
     it(label, function (done) {
       this.timeout(TIMEOUT);
