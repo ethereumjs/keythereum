@@ -167,92 +167,94 @@ module.exports = {
    */
   deriveKey: function (password, salt, options, cb) {
     var self = this;
-    if (password && salt) {
-      options = options || {};
-      options.kdfparams = options.kdfparams || {};
+    if (typeof password === 'undefined' || password === null || !salt) {
+      throw new Error('Must provide password and salt to derive a key');
+    }
 
-      // convert strings to buffers
-      if (password.constructor === String) password = str2buf(password, "utf8");
-      if (salt.constructor === String) salt = str2buf(salt);
+    options = options || {};
+    options.kdfparams = options.kdfparams || {};
 
-      // use scrypt as key derivation function
-      if (options.kdf === "scrypt") {
-        if (scrypt.constructor === Function) {
-          scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
-        }
-        if (isFunction(cb)) {
-            setTimeout(function () {
-              cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
-                password,
-                salt,
-                options.kdfparams.n || self.constants.scrypt.n,
-                options.kdfparams.r || self.constants.scrypt.r,
-                options.kdfparams.p || self.constants.scrypt.p,
-                options.kdfparams.dklen || self.constants.scrypt.dklen
-              )), "hex"));
-            }, 0);
-          } else {
-            try {
-              return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
-                password,
-                salt,
-                options.kdfparams.n || this.constants.scrypt.n,
-                options.kdfparams.r || this.constants.scrypt.r,
-                options.kdfparams.p || this.constants.scrypt.p,
-                options.kdfparams.dklen || this.constants.scrypt.dklen
-              )), "hex");
-            } catch (ex) {
-              return ex;
-            }
-          }
+    // convert strings to buffers
+    if (password.constructor === String) password = str2buf(password, "utf8");
+    if (salt.constructor === String) salt = str2buf(salt);
 
-      // use default key derivation function (PBKDF2)
-      } else {
-        var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
-        if (prf === "hmac-sha256") prf = "sha256";
-        if (!isFunction(cb)) {
-          try {
-            if (!this.crypto.pbkdf2Sync) {
-              return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-                password.toString('utf8'),
-                sjcl.codec.hex.toBits(salt.toString("hex")),
-                options.kdfparams.c || self.constants.pbkdf2.c,
-                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-              )), "hex");
-            }
-            return crypto.pbkdf2Sync(
+    // use scrypt as key derivation function
+    if (options.kdf === "scrypt") {
+      if (scrypt.constructor === Function) {
+        scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
+      }
+      if (isFunction(cb)) {
+          setTimeout(function () {
+            cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
               password,
               salt,
-              options.kdfparams.c || this.constants.pbkdf2.c,
-              options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-              prf
-            );
+              options.kdfparams.n || self.constants.scrypt.n,
+              options.kdfparams.r || self.constants.scrypt.r,
+              options.kdfparams.p || self.constants.scrypt.p,
+              options.kdfparams.dklen || self.constants.scrypt.dklen
+            )), "hex"));
+          }, 0);
+        } else {
+          try {
+            return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+              password,
+              salt,
+              options.kdfparams.n || this.constants.scrypt.n,
+              options.kdfparams.r || this.constants.scrypt.r,
+              options.kdfparams.p || this.constants.scrypt.p,
+              options.kdfparams.dklen || this.constants.scrypt.dklen
+            )), "hex");
           } catch (ex) {
             return ex;
           }
         }
-        if (!this.crypto.pbkdf2) {
-          setTimeout(function () {
-            cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+
+    // use default key derivation function (PBKDF2)
+    } else {
+      var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+      if (prf === "hmac-sha256") prf = "sha256";
+      if (!isFunction(cb)) {
+        try {
+          if (!this.crypto.pbkdf2Sync) {
+            return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
               password.toString('utf8'),
               sjcl.codec.hex.toBits(salt.toString("hex")),
               options.kdfparams.c || self.constants.pbkdf2.c,
               (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-            )), "hex"));
-          }, 0);
-        } else {
-          crypto.pbkdf2(
+            )), "hex");
+          }
+          return crypto.pbkdf2Sync(
             password,
             salt,
             options.kdfparams.c || this.constants.pbkdf2.c,
             options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-            prf,
-            function (ex, derivedKey) {
-              if (ex) return cb(ex);
-              cb(derivedKey);
-            }
+            prf
           );
+        } catch (ex) {
+          return ex;
         }
+      }
+      if (!this.crypto.pbkdf2) {
+        setTimeout(function () {
+          cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+            password.toString('utf8'),
+            sjcl.codec.hex.toBits(salt.toString("hex")),
+            options.kdfparams.c || self.constants.pbkdf2.c,
+            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+          )), "hex"));
+        }, 0);
+      } else {
+        crypto.pbkdf2(
+          password,
+          salt,
+          options.kdfparams.c || this.constants.pbkdf2.c,
+          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+          prf,
+          function (ex, derivedKey) {
+            if (ex) return cb(ex);
+            cb(derivedKey);
+          }
+        );
       }
     }
   },
