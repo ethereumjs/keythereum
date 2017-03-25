@@ -167,8 +167,8 @@ module.exports = {
    */
   deriveKey: function (password, salt, options, cb) {
     var self = this;
-    if (typeof password === 'undefined' || password === null || !salt) {
-      throw new Error('Must provide password and salt to derive a key');
+    if (typeof password === "undefined" || password === null || !salt) {
+      throw new Error("Must provide password and salt to derive a key");
     }
 
     options = options || {};
@@ -217,7 +217,7 @@ module.exports = {
         try {
           if (!this.crypto.pbkdf2Sync) {
             return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-              password.toString('utf8'),
+              password.toString("utf8"),
               sjcl.codec.hex.toBits(salt.toString("hex")),
               options.kdfparams.c || self.constants.pbkdf2.c,
               (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
@@ -237,7 +237,7 @@ module.exports = {
       if (!this.crypto.pbkdf2) {
         setTimeout(function () {
           cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-            password.toString('utf8'),
+            password.toString("utf8"),
             sjcl.codec.hex.toBits(salt.toString("hex")),
             options.kdfparams.c || self.constants.pbkdf2.c,
             (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
