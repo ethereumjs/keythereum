@@ -38,15 +38,16 @@ function str2buf(str, enc) {
 
 // convert hex to UTF-16LE
 function hex2utf16le(input) {
-  var output = '';
-  for (var i = 0, l = input.length; i < l; i += 4) {
-    output += '\\u' + input.slice(i+2, i+4) + input.slice(i, i+2);
+  var i, l;
+  var output = "";
+  for (i = 0, l = input.length; i < l; i += 4) {
+    output += "\\u" + input.slice(i+2, i+4) + input.slice(i, i+2);
   }
-  return JSON.parse('"' + output + '"');
+  return JSON.parse("\"" + output + "\"");
 }
 
 function isFunction(f) {
-  return Object.prototype.toString.call(f) === "[object Function]";
+  return typeof f === "function";
 }
 
 module.exports = {
@@ -166,7 +167,7 @@ module.exports = {
    * @return {buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
-    var self = this;
+    var prf, self = this;
     if (typeof password === "undefined" || password === null || !salt) {
       throw new Error("Must provide password and salt to derive a key");
     }
@@ -184,55 +185,47 @@ module.exports = {
         scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
       }
       if (isFunction(cb)) {
-          setTimeout(function () {
-            cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
-              password,
-              salt,
-              options.kdfparams.n || self.constants.scrypt.n,
-              options.kdfparams.r || self.constants.scrypt.r,
-              options.kdfparams.p || self.constants.scrypt.p,
-              options.kdfparams.dklen || self.constants.scrypt.dklen
-            )), "hex"));
-          }, 0);
-        } else {
-          try {
-            return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
-              password,
-              salt,
-              options.kdfparams.n || this.constants.scrypt.n,
-              options.kdfparams.r || this.constants.scrypt.r,
-              options.kdfparams.p || this.constants.scrypt.p,
-              options.kdfparams.dklen || this.constants.scrypt.dklen
-            )), "hex");
-          } catch (ex) {
-            return ex;
-          }
-        }
+        setTimeout(function () {
+          cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+            password,
+            salt,
+            options.kdfparams.n || self.constants.scrypt.n,
+            options.kdfparams.r || self.constants.scrypt.r,
+            options.kdfparams.p || self.constants.scrypt.p,
+            options.kdfparams.dklen || self.constants.scrypt.dklen
+          )), "hex"));
+        }, 0);
+      } else {
+        return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+          password,
+          salt,
+          options.kdfparams.n || this.constants.scrypt.n,
+          options.kdfparams.r || this.constants.scrypt.r,
+          options.kdfparams.p || this.constants.scrypt.p,
+          options.kdfparams.dklen || this.constants.scrypt.dklen
+        )), "hex");
+      }
 
     // use default key derivation function (PBKDF2)
     } else {
-      var prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+      prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
       if (prf === "hmac-sha256") prf = "sha256";
       if (!isFunction(cb)) {
-        try {
-          if (!this.crypto.pbkdf2Sync) {
-            return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-              password.toString("utf8"),
-              sjcl.codec.hex.toBits(salt.toString("hex")),
-              options.kdfparams.c || self.constants.pbkdf2.c,
-              (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-            )), "hex");
-          }
-          return crypto.pbkdf2Sync(
-            password,
-            salt,
-            options.kdfparams.c || this.constants.pbkdf2.c,
-            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-            prf
-          );
-        } catch (ex) {
-          return ex;
+        if (!this.crypto.pbkdf2Sync) {
+          return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+            password.toString("utf8"),
+            sjcl.codec.hex.toBits(salt.toString("hex")),
+            options.kdfparams.c || self.constants.pbkdf2.c,
+            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+          )), "hex");
         }
+        return crypto.pbkdf2Sync(
+          password,
+          salt,
+          options.kdfparams.c || this.constants.pbkdf2.c,
+          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+          prf
+        );
       }
       if (!this.crypto.pbkdf2) {
         setTimeout(function () {
@@ -269,9 +262,10 @@ module.exports = {
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
+    var keyBytes, ivBytes;
     params = params || {};
-    var keyBytes = params.keyBytes || this.constants.keyBytes;
-    var ivBytes = params.ivBytes || this.constants.ivBytes;
+    keyBytes = params.keyBytes || this.constants.keyBytes;
+    ivBytes = params.ivBytes || this.constants.ivBytes;
 
     // asynchronous key generation if callback is provided
     if (isFunction(cb)) {
@@ -334,7 +328,7 @@ module.exports = {
    * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
    * @return {Object}
    */
-  marshal: function(derivedKey, privateKey, salt, iv, options) {
+  marshal: function (derivedKey, privateKey, salt, iv, options) {
     var ciphertext, keyObject;
     options = options || {};
     options.kdfparams = options.kdfparams || {};
@@ -413,22 +407,21 @@ module.exports = {
    * @return {buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
-    var self = this;
-    var keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
+    var keyObjectCrypto, iv, salt, ciphertext, self = this;
+    keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
     // verify that message authentication codes match, then decrypt
     function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
       var mac = self.getMAC(derivedKey, ciphertext);
       if (mac === keyObjectCrypto.mac) {
         return new Buffer(self.decrypt(ciphertext, derivedKey.slice(0, 16), iv), "hex");
-      } else {
-        throw new Error("message authentication code mismatch");
       }
+      throw new Error("message authentication code mismatch");
     }
 
-    var iv = keyObjectCrypto.cipherparams.iv;
-    var salt = keyObjectCrypto.kdfparams.salt;
-    var ciphertext = keyObjectCrypto.ciphertext;
+    iv = keyObjectCrypto.cipherparams.iv;
+    salt = keyObjectCrypto.kdfparams.salt;
+    ciphertext = keyObjectCrypto.ciphertext;
 
     if (iv && iv.constructor === String) iv = str2buf(iv);
     if (salt && salt.constructor === String) salt = str2buf(salt);
@@ -511,11 +504,12 @@ module.exports = {
    * @return {Object} Keystore data file's contents.
    */
   importFromFile: function (address, datadir, cb) {
+    var keystore, filepath;
     address = address.replace("0x", "");
 
     function findKeyfile(keystore, address, files) {
-      var filepath = null;
-      for (var i = 0, len = files.length; i < len; ++i) {
+      var i, len, filepath = null;
+      for (i = 0, len = files.length; i < len; ++i) {
         if (files[i].indexOf(address) > -1) {
           filepath = path.join(keystore, files[i]);
           if (fs.lstatSync(filepath).isDirectory()) {
@@ -529,17 +523,18 @@ module.exports = {
 
     if (this.browser) throw new Error("method only available in Node.js");
     datadir = datadir || path.join(process.env.HOME, ".ethereum");
-    var keystore = path.join(datadir, "keystore");
+    keystore = path.join(datadir, "keystore");
     if (!isFunction(cb)) {
-      var filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
+      filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
       if (!filepath) {
         throw new Error("could not find key file for address " + address);
       }
       return JSON.parse(fs.readFileSync(filepath));
     }
     fs.readdir(keystore, function (ex, files) {
+      var filepath;
       if (ex) return cb(ex);
-      var filepath = findKeyfile(keystore, address, files);
+      filepath = findKeyfile(keystore, address, files);
       if (!filepath) {
         return new Error("could not find key file for address " + address);
       }

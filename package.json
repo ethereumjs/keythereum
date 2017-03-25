@@ -1,6 +1,6 @@
 {
   "name": "keythereum",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Create, import and export Ethereum keys",
   "main": "index.js",
   "directories": {
@@ -10,7 +10,7 @@
   "scripts": {
     "test": "mocha test/keys.js",
     "geth": "mocha -R progress test/keys.js && mocha -R progress test/geth.js",
-    "lint": "jshint index.js && jshint test",
+    "lint": "eslint index.js && eslint gulpfile.js && eslint test",
     "coverage": "istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js"
   },
   "repository": {
@@ -39,6 +39,7 @@
     "chai": "^3.2.0",
     "coveralls": "^2.11.3",
     "del": "^1.2.0",
+    "eslint": "^3.17.1",
     "geth": "^0.2.2",
     "gulp": "^3.9.0",
     "istanbul": "^0.3.17",

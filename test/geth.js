@@ -1,7 +1,4 @@
-/**
- * keythereum unit tests
- * @author Jack Peterson (jack@tinybike.net)
- */
+/* eslint-env node, mocha */
 
 "use strict";
 
@@ -12,8 +9,6 @@ var assert = require("chai").assert;
 var geth = require("geth");
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
-
-// geth.debug = true;
 
 var NUM_TESTS = 1000;
 var TIMEOUT = 10000;
@@ -32,6 +27,11 @@ var options = {
   }
 };
 
+var pbkdf2 = keythereum.crypto.pbkdf2;
+var pbkdf2Sync = keythereum.crypto.pbkdf2Sync;
+
+// geth.debug = true;
+
 function createEthereumKey(passphrase) {
   var dk = keythereum.create();
   var key = keythereum.dump(passphrase, dk.privateKey, dk.salt, dk.iv);
@@ -40,17 +40,15 @@ function createEthereumKey(passphrase) {
 
 keythereum.constants.quiet = true;
 
-var pbkdf2 = keythereum.crypto.pbkdf2;
-var pbkdf2Sync = keythereum.crypto.pbkdf2Sync;
-
 describe("Unlock randomly-generated accounts in geth", function () {
+  var password, hashRounds, i;
 
   var test = function (t) {
 
-    var label = "[" + t.kdf + " | " + t.hashRounds + " rounds] "+
-      "generate key file using password '" + t.password +"'";
+    var label = "[" + t.kdf + " | " + t.hashRounds + " rounds] generate key file using password '" + t.password +"'";
 
     it(label, function (done) {
+      var json, keyObject;
       this.timeout(TIMEOUT*2);
 
       if (t.sjcl) {
@@ -61,10 +59,10 @@ describe("Unlock randomly-generated accounts in geth", function () {
         keythereum.crypto.pbkdf2Sync = pbkdf2Sync;
       }
 
-      var json = createEthereumKey(t.password);
+      json = createEthereumKey(t.password);
       assert.isNotNull(json);
 
-      var keyObject = JSON.parse(json);
+      keyObject = JSON.parse(json);
       assert.isObject(keyObject);
       checkKeyObj.structure(keythereum, keyObject);
 
@@ -112,10 +110,8 @@ describe("Unlock randomly-generated accounts in geth", function () {
     });
   };
 
-  var password, hashRounds;
+  for (i = 0; i < NUM_TESTS; ++i) {
 
-  for (var i = 0; i < NUM_TESTS; ++i) {
-    
     password = crypto.randomBytes(Math.ceil(Math.random()*100));
     hashRounds = Math.ceil(Math.random() * 300000);
 
