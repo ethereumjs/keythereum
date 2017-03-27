@@ -450,6 +450,20 @@ module.exports = {
   },
 
   /**
+   * Generate filename for a keystore file.
+   * @param {string} address Ethereum address.
+   * @return {string} Keystore filename.
+   */
+  generateKeystoreFilename: function (address) {
+    var filename = "UTC--" + new Date().toISOString() + "--" + address;
+
+    // Windows does not permit ":" in filenames, replace all with "-"
+    if (process.platform === "win32") filename = filename.split(":").join("-");
+
+    return filename;
+  },
+
+  /**
    * Export formatted JSON to keystore file.
    * @param {Object} keyObject Keystore object.
    * @param {string=} keystore Path to keystore folder (default: "keystore").
@@ -471,11 +485,7 @@ module.exports = {
     }
 
     keystore = keystore || "keystore";
-    outfile = "UTC--" + new Date().toISOString() + "--" + keyObject.address;
-
-    // Windows does not permit ":" in filenames, replace all with "-"
-    if (process.platform === "win32") outfile = outfile.split(":").join("-");
-
+    outfile = this.generateKeystoreFilename(keyObject.address);
     outpath = path.join(keystore, outfile);
     json = JSON.stringify(keyObject);
 

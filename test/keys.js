@@ -503,6 +503,41 @@ describe("Dump private key", function () {
   });
 });
 
+describe("Generate keystore filename", function () {
+  var test = function (t) {
+    it(t.address, function () {
+      t.assertions(keythereum.generateKeystoreFilename(t.address));
+    });
+  };
+  test({
+    address: "0000000000000000000000000000000000000b0b",
+    assertions: function (filename) {
+      var splitFilename = filename.split("--");
+      assert.strictEqual(splitFilename.length, 3);
+      assert.strictEqual(splitFilename[0], "UTC");
+      assert.strictEqual(splitFilename[2], "0000000000000000000000000000000000000b0b");
+    }
+  });
+  test({
+    address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
+    assertions: function (filename) {
+      var splitFilename = filename.split("--");
+      assert.strictEqual(splitFilename.length, 3);
+      assert.strictEqual(splitFilename[0], "UTC");
+      assert.strictEqual(splitFilename[2], "008aeeda4d805471df9b2a5b0f38a0c3bcba786b");
+    }
+  });
+  test({
+    address: "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc",
+    assertions: function (filename) {
+      var splitFilename = filename.split("--");
+      assert.strictEqual(splitFilename.length, 3);
+      assert.strictEqual(splitFilename[0], "UTC");
+      assert.strictEqual(splitFilename[2], "c9a9adc70a9cbf077ae4bd0a170d88592914e0cc");
+    }
+  });
+});
+
 describe("Export to file", function () {
 
   var keyObj = {
