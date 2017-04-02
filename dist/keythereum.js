@@ -96,6 +96,25 @@ module.exports = {
   },
 
   /**
+   * Check if the selected cipher is available.
+   * @param {string} algo Encryption algorithm.
+   * @return {boolean} If available true, otherwise false.
+   */
+  isCipherAvailable: function (cipher) {
+    var i, isAvailable, availableCiphers, numCiphers;
+    isAvailable = false;
+    availableCiphers = crypto.getCiphers();
+    numCiphers = availableCiphers.length;
+    for (i = 0; i < numCiphers; ++i) {
+      if (cipher === availableCiphers[i]) {
+        isAvailable = true;
+        break;
+      }
+    }
+    return isAvailable;
+  },
+
+  /**
    * Symmetric private key encryption using secret (derived) key.
    * @param {buffer|string} plaintext Text to be encrypted.
    * @param {buffer|string} key Secret key.
@@ -105,14 +124,15 @@ module.exports = {
    */
   encrypt: function (plaintext, key, iv, algo) {
     var cipher, ciphertext;
+    algo = algo || this.constants.cipher;
+    if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
     if (plaintext.constructor === String) plaintext = str2buf(plaintext);
     if (key.constructor === String) key = str2buf(key);
     if (iv.constructor === String) iv = str2buf(iv);
 
-    cipher = crypto.createCipheriv(algo || this.constants.cipher, key, iv);
+    cipher = crypto.createCipheriv(algo, key, iv);
     ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
-
     return ciphertext + cipher.final("base64");
   },
 
@@ -126,14 +146,15 @@ module.exports = {
    */
   decrypt: function (ciphertext, key, iv, algo) {
     var decipher, plaintext;
+    algo = algo || this.constants.cipher;
+    if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
     if (ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
     if (key.constructor === String) key = str2buf(key);
     if (iv.constructor === String) iv = str2buf(iv);
 
-    decipher = crypto.createDecipheriv(algo || this.constants.cipher, key, iv);
+    decipher = crypto.createDecipheriv(algo, key, iv);
     plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
-
     return plaintext + decipher.final("hex");
   },
 
@@ -276,53 +297,35 @@ module.exports = {
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
-    // asynchronous key generation if callback is provided
-    if (isFunction(cb)) {
-
-      // generate private key
-      crypto.randomBytes(keyBytes, function (ex, privateKey) {
-        if (ex) {
-          cb(ex);
-        } else {
-
-          // generate random initialization vector
-          crypto.randomBytes(ivBytes, function (ex, iv) {
-            if (ex) {
-              cb(ex);
-            } else {
-
-              // generate random salt
-              crypto.randomBytes(keyBytes, function (ex, salt) {
-                if (ex) {
-                  cb(ex);
-                } else {
-                  cb({
-                    privateKey: privateKey,
-                    iv: iv,
-                    salt: salt
-                  });
-                }
-              });
-            }
-          }); // crypto.randomBytes
-        }
-      }); // crypto.randomBytes
-
-    // synchronous key generation
-    } else {
-
-      try {
-        return {
-          privateKey: crypto.randomBytes(keyBytes),
-          iv: crypto.randomBytes(ivBytes),
-          salt: crypto.randomBytes(keyBytes)
-        };
-
-      // couldn't generate key: not enough entropy?
-      } catch (ex) {
-        return ex;
-      }
+    // synchronous key generation if callback not provided
+    if (!isFunction(cb)) {
+      return {
+        privateKey: crypto.randomBytes(keyBytes),
+        iv: crypto.randomBytes(ivBytes),
+        salt: crypto.randomBytes(keyBytes)
+      };
     }
+
+    // asynchronous key generation
+    // generate private key
+    crypto.randomBytes(keyBytes, function (ex, privateKey) {
+      if (ex) return cb(ex);
+
+      // generate random initialization vector
+      crypto.randomBytes(ivBytes, function (ex, iv) {
+        if (ex) return cb(ex);
+
+        // generate random salt
+        crypto.randomBytes(keyBytes, function (ex, salt) {
+          if (ex) return cb(ex);
+          cb({
+            privateKey: privateKey,
+            iv: iv,
+            salt: salt
+          });
+        });
+      });
+    });
   },
 
   /**
@@ -338,12 +341,14 @@ module.exports = {
    * @return {Object}
    */
   marshal: function (derivedKey, privateKey, salt, iv, options) {
-    var ciphertext, keyObject;
+    var ciphertext, keyObject, algo;
     options = options || {};
     options.kdfparams = options.kdfparams || {};
+    algo = options.cipher || this.constants.cipher;
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = new Buffer(this.encrypt(privateKey, derivedKey.slice(0, 16), iv), "base64").toString("hex");
+    // ciphertext = new Buffer(this.encrypt(privateKey, new Buffer(keccak(hex2utf16le(derivedKey.toString("hex").slice(0, 32))), "hex").slice(0, 16), iv, algo), "base64").toString("hex");
+    ciphertext = new Buffer(this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo), "base64").toString("hex");
 
     keyObject = {
       address: this.privateKeyToAddress(privateKey).slice(2),
@@ -416,21 +421,27 @@ module.exports = {
    * @return {buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
-    var keyObjectCrypto, iv, salt, ciphertext, self = this;
+    var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
     keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
     // verify that message authentication codes match, then decrypt
-    function verifyAndDecrypt(derivedKey, salt, iv, ciphertext) {
-      var mac = self.getMAC(derivedKey, ciphertext);
-      if (mac === keyObjectCrypto.mac) {
-        return new Buffer(self.decrypt(ciphertext, derivedKey.slice(0, 16), iv), "hex");
+    function verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo) {
+      var key;
+      if (self.getMAC(derivedKey, ciphertext) !== keyObjectCrypto.mac) {
+        throw new Error("message authentication code mismatch");
       }
-      throw new Error("message authentication code mismatch");
+      if (keyObject.version === "1") {
+        key = new Buffer(keccak(hex2utf16le(derivedKey.toString("hex").slice(0, 32))), "hex").slice(0, 16);
+      } else {
+        key = derivedKey.slice(0, 16);
+      }
+      return new Buffer(self.decrypt(ciphertext, key, iv, algo), "hex");
     }
 
     iv = keyObjectCrypto.cipherparams.iv;
     salt = keyObjectCrypto.kdfparams.salt;
     ciphertext = keyObjectCrypto.ciphertext;
+    algo = keyObjectCrypto.cipher;
 
     if (iv && iv.constructor === String) iv = str2buf(iv);
     if (salt && salt.constructor === String) salt = str2buf(salt);
@@ -451,10 +462,10 @@ module.exports = {
 
     // derive secret key from password
     if (!isFunction(cb)) {
-      return verifyAndDecrypt(this.deriveKey(password, salt, keyObjectCrypto), salt, iv, ciphertext);
+      return verifyAndDecrypt(this.deriveKey(password, salt, keyObjectCrypto), salt, iv, ciphertext, algo);
     }
     this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
-      cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext));
+      cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo));
     });
   },
 

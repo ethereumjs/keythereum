@@ -29,6 +29,35 @@ keythereum.constants.quiet = !DEBUG;
 keythereum.constants.pbkdf2.c = 262144;
 keythereum.constants.scrypt.n = 262144;
 
+describe("Check if selected cipher is available", function () {
+  var test = function (t) {
+    it(t.description, function () {
+      t.assertions(keythereum.isCipherAvailable(t.cipher));
+    });
+  };
+  test({
+    description: "aes-128-ctr should be available",
+    cipher: "aes-128-ctr",
+    assertions: function (isAvailable) {
+      assert.isTrue(isAvailable);
+    }
+  });
+  test({
+    description: "aes-128-cbc should be available",
+    cipher: "aes-128-cbc",
+    assertions: function (isAvailable) {
+      assert.isTrue(isAvailable);
+    }
+  });
+  test({
+    description: "roflcipher should not be available",
+    cipher: "roflcipher",
+    assertions: function (isAvailable) {
+      assert.isFalse(isAvailable);
+    }
+  });
+});
+
 describe("Private key recovery", function () {
 
   // password used as secret key for aes-256 cipher
@@ -995,5 +1024,57 @@ describe("Recover plaintext private key from key object", function () {
       }
     },
     expected: "6445042b8e8cc121fb6a8985606a84b4cb07dac6dfb3633e769ec27dd2370984"
+  });
+  test({
+    input: {
+      password: "testpassword",
+      keyObject: {
+        address: "f0c4ee355432a7c7da12bdef04543723d110d591",
+        Crypto: {
+          cipher: "aes-128-cbc",
+          cipherparams: {iv: "bda427191686ac4455142bc449543129"},
+          ciphertext: "097cc168892c41872ba92af7a359708f2e9f2f420465684cf84bb2d1a7351e37a7746607d3845ab91ce82cbf9ba54c69",
+          kdf: "scrypt",
+          kdfparams: {
+            n: 262144,
+            r: 8,
+            p: 1,
+            dklen: 32,
+            salt: "98e3f47b814f5a55a2298cf92a2572a047c31d30c6b8bb4d1e5f60cc4a437653"
+          },
+          mac: "4c5d82b039d482b51d2f6ca09f1ff9b44f6e4a35f5bf0155cb1a163c75742278",
+          version: "1"
+        },
+        id: "efe9ba02-56a3-42f5-9fb3-10059629c7bf",
+        version: "1"
+      }
+    },
+    expected: "490127c2782fb55943beeb31943ec26f48a9a5121cd7e91799eb354d30d46529"
+  });
+  test({
+    input: {
+      password: "correcthorsebatterystaple",
+      keyObject: {
+        address: "f0c4ee355432a7c7da12bdef04543723d110d591",
+        Crypto: {
+          cipher: "aes-128-cbc",
+          cipherparams: {iv: "bda427191686ac4455142bc449543129"},
+          ciphertext: "fc221520b157d08bd51e1b220a188e36b2f53a783ed5777e4438951349dd80b33089a18f493a84f279f376edc42a370d",
+          kdf: "scrypt",
+          kdfparams: {
+            n: 262144,
+            r: 8,
+            p: 1,
+            dklen: 32,
+            salt: "98e3f47b814f5a55a2298cf92a2572a047c31d30c6b8bb4d1e5f60cc4a437653"
+          },
+          mac: "f4f15a66f99a87923cc8d8fcbf2fd5d3c2f2de238d87b024113f97a37778210a",
+          version: "1"
+        },
+        id: "efe9ba02-56a3-42f5-9fb3-10059629c7bf",
+        version: "1"
+      }
+    },
+    expected: "490127c2782fb55943beeb31943ec26f48a9a5121cd7e91799eb354d30d46529"
   });
 });
