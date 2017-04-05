@@ -168,8 +168,8 @@ module.exports = {
    */
   getMAC: function (derivedKey, ciphertext) {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
-      if (derivedKey.constructor === Buffer) derivedKey = derivedKey.toString("hex");
-      if (ciphertext.constructor === Buffer) ciphertext = ciphertext.toString("hex");
+      if (Buffer.isBuffer(derivedKey)) derivedKey = derivedKey.toString("hex");
+      if (Buffer.isBuffer(ciphertext)) ciphertext = ciphertext.toString("hex");
       return keccak(hex2utf16le(derivedKey.slice(32, 64) + ciphertext));
     }
   },
