@@ -19,7 +19,7 @@ var scrypt = require("./lib/scrypt");
 
 // convert string to buffer
 function str2buf(str, enc) {
-  if (str.constructor === String) {
+  if (str && str.constructor === String) {
     if (enc) {
       str = new Buffer(str, enc);
     } else {
@@ -117,9 +117,9 @@ module.exports = {
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
-    if (plaintext.constructor === String) plaintext = str2buf(plaintext);
-    if (key.constructor === String) key = str2buf(key);
-    if (iv.constructor === String) iv = str2buf(iv);
+    plaintext = str2buf(plaintext);
+    key = str2buf(key);
+    iv = str2buf(iv);
 
     cipher = crypto.createCipheriv(algo, key, iv);
     ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
@@ -139,9 +139,9 @@ module.exports = {
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
-    if (ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
-    if (key.constructor === String) key = str2buf(key);
-    if (iv.constructor === String) iv = str2buf(iv);
+    ciphertext = str2buf(ciphertext);
+    key = str2buf(key);
+    iv = str2buf(iv);
 
     decipher = crypto.createDecipheriv(algo, key, iv);
     plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
@@ -154,8 +154,7 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    if (privateKey.constructor === String) privateKey = str2buf(privateKey);
-    return "0x" + privateToAddress(privateKey).toString("hex");
+    return "0x" + privateToAddress(str2buf(privateKey)).toString("hex");
   },
 
   /**
@@ -196,8 +195,8 @@ module.exports = {
     options.kdfparams = options.kdfparams || {};
 
     // convert strings to buffers
-    if (password.constructor === String) password = str2buf(password, "utf8");
-    if (salt.constructor === String) salt = str2buf(salt);
+    password = str2buf(password, "utf8");
+    salt = str2buf(salt);
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
@@ -389,8 +388,8 @@ module.exports = {
    */
   dump: function (password, privateKey, salt, iv, options, cb) {
     options = options || {};
-    if (iv.constructor === String) iv = str2buf(iv);
-    if (privateKey.constructor === String) privateKey = str2buf(privateKey);
+    iv = str2buf(iv);
+    privateKey = str2buf(privateKey);
 
     // synchronous if no callback provided
     if (!isFunction(cb)) {
@@ -432,9 +431,9 @@ module.exports = {
     ciphertext = keyObjectCrypto.ciphertext;
     algo = keyObjectCrypto.cipher;
 
-    if (iv && iv.constructor === String) iv = str2buf(iv);
-    if (salt && salt.constructor === String) salt = str2buf(salt);
-    if (ciphertext && ciphertext.constructor === String) ciphertext = str2buf(ciphertext);
+    iv = str2buf(iv);
+    salt = str2buf(salt);
+    ciphertext = str2buf(ciphertext);
 
     if (keyObjectCrypto.kdf === "scrypt") {
       this.constants.scrypt.n = keyObjectCrypto.kdfparams.n;
