@@ -38,12 +38,7 @@ function str2buf(str, enc) {
 
 // convert hex to UTF-16LE
 function hex2utf16le(input) {
-  var i, l;
-  var output = "";
-  for (i = 0, l = input.length; i < l; i += 4) {
-    output += "\\u" + input.slice(i+2, i+4) + input.slice(i, i+2);
-  }
-  return JSON.parse("\"" + output + "\"");
+  return new Buffer(input, "hex").toString("utf16le");
 }
 
 function isFunction(f) {
