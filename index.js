@@ -200,7 +200,7 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (scrypt.constructor === Function) {
+      if (isFunction(scrypt)) {
         scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
       }
       if (isFunction(cb)) {
