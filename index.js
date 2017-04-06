@@ -89,17 +89,7 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    var i, isAvailable, availableCiphers, numCiphers;
-    isAvailable = false;
-    availableCiphers = crypto.getCiphers();
-    numCiphers = availableCiphers.length;
-    for (i = 0; i < numCiphers; ++i) {
-      if (cipher === availableCiphers[i]) {
-        isAvailable = true;
-        break;
-      }
-    }
-    return isAvailable;
+    return crypto.getCiphers().some(function (name) { return name === cipher });
   },
 
   /**
