@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/ethereumjs/keythereum#readme",
   "dependencies": {
-    "ethereumjs-util": "5.1.1",
+    "secp256k1": "^3.2.5",
     "sjcl": "1.0.6",
     "uuid": "3.0.0",
     "validator": "4.0.2"
