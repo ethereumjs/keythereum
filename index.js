@@ -279,39 +279,29 @@ module.exports = {
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
-    var keyBytes, ivBytes;
+    var keyBytes, ivBytes, totalBytes;
     params = params || {};
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
+    function bytes2object(bytes) {
+      return {
+        privateKey: bytes.slice(0, keyBytes),
+        iv: bytes.slice(keyBytes, keyBytes + ivBytes),
+        salt: bytes.slice(keyBytes + ivBytes)
+      };
+    }
+
     // synchronous key generation if callback not provided
     if (!isFunction(cb)) {
-      return {
-        privateKey: crypto.randomBytes(keyBytes),
-        iv: crypto.randomBytes(ivBytes),
-        salt: crypto.randomBytes(keyBytes)
-      };
+      return bytes2object(crypto.randomBytes(keyBytes + ivBytes + keyBytes));
     }
 
     // asynchronous key generation
     // generate private key
-    crypto.randomBytes(keyBytes, function (ex, privateKey) {
-      if (ex) return cb(ex);
-
-      // generate random initialization vector
-      crypto.randomBytes(ivBytes, function (ex, iv) {
-        if (ex) return cb(ex);
-
-        // generate random salt
-        crypto.randomBytes(keyBytes, function (ex, salt) {
-          if (ex) return cb(ex);
-          cb({
-            privateKey: privateKey,
-            iv: iv,
-            salt: salt
-          });
-        });
-      });
+    crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, bytes) {
+      if (err) cb(err);
+      else cb(bytes2object(bytes));
     });
   },
 
