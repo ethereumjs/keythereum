@@ -8,6 +8,7 @@
     "lib": "lib"
   },
   "scripts": {
+    "build": "mkdir dist && gulp build",
     "test": "mocha test/keys.js",
     "geth": "mocha -R progress test/keys.js && mocha -R progress test/geth.js",
     "lint": "eslint index.js && eslint gulpfile.js && eslint test",
@@ -35,6 +36,7 @@
     "babel-preset-es2015": "^6.18.0",
     "babel-preset-stage-0": "^6.16.0",
     "browserify": "^13.1.1",
+    "build-jslib-ci": "^1.0.0",
     "chai": "^3.2.0",
     "coveralls": "^2.11.3",
     "del": "^1.2.0",
