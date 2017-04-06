@@ -37,7 +37,11 @@ function str2buf(str, enc) {
 
 // convert hex to UTF-16LE
 function hex2utf16le(input) {
-  return new Buffer(input, "hex").toString("utf16le");
+  var buf = new Buffer(input, "hex");
+  if (buf.length % 2 !== 0) {
+    throw new Error("Can't convert input to utf16 - invalid length");
+  }
+  return buf.toString("utf16le");
 }
 
 function isFunction(f) {
