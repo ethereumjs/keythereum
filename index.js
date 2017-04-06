@@ -13,8 +13,7 @@ var crypto = require("crypto");
 var sjcl = require("sjcl");
 var uuid = require("uuid");
 var validator = require("validator");
-var ecdsa = new (require("elliptic").ec)("secp256k1");
-var pubToAddress = require("ethereumjs-util").pubToAddress;
+var privateToAddress = require("ethereumjs-util").privateToAddress;
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt");
 
@@ -156,7 +155,7 @@ module.exports = {
    */
   privateKeyToAddress: function (privateKey) {
     if (privateKey.constructor === String) privateKey = str2buf(privateKey);
-    return "0x" + pubToAddress(new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr")), true).toString("hex");
+    return "0x" + privateToAddress(privateKey).toString("hex");
   },
 
   /**

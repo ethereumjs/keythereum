@@ -24,7 +24,6 @@
   },
   "homepage": "https://github.com/ethereumjs/keythereum#readme",
   "dependencies": {
-    "elliptic": "6.4.0",
     "ethereumjs-util": "5.1.1",
     "sjcl": "1.0.6",
     "uuid": "3.0.0",
