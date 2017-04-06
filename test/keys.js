@@ -6,8 +6,7 @@ var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
 var assert = require("chai").assert;
-var pubToAddress = require("ethereumjs-util").pubToAddress;
-var ecdsa = new (require("elliptic").ec)("secp256k1");
+var privateToAddress = require("ethereumjs-util").privateToAddress;
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 var DEBUG = false;
@@ -18,9 +17,8 @@ var TIMEOUT = 120000;
 // create private key
 var privateKey = crypto.randomBytes(32);
 
-// derive secp256k1 ECDSA public key and address from private key
-var publicKey = new Buffer(ecdsa.keyFromPrivate(privateKey).getPublic("arr"));
-var address = pubToAddress(publicKey, true).toString("hex");
+// create address from private key
+var address = privateToAddress(privateKey).toString("hex");
 
 // suppress logging
 keythereum.constants.quiet = !DEBUG;
