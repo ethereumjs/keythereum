@@ -6,7 +6,6 @@ var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
 var assert = require("chai").assert;
-var privateToAddress = require("ethereumjs-util").privateToAddress;
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 var DEBUG = false;
@@ -18,7 +17,7 @@ var TIMEOUT = 120000;
 var privateKey = crypto.randomBytes(32);
 
 // create address from private key
-var address = privateToAddress(privateKey).toString("hex");
+var address = keythereum.privateKeyToAddress(privateKey).slice(2);
 
 // suppress logging
 keythereum.constants.quiet = !DEBUG;
