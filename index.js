@@ -89,17 +89,7 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    var i, isAvailable, availableCiphers, numCiphers;
-    isAvailable = false;
-    availableCiphers = crypto.getCiphers();
-    numCiphers = availableCiphers.length;
-    for (i = 0; i < numCiphers; ++i) {
-      if (cipher === availableCiphers[i]) {
-        isAvailable = true;
-        break;
-      }
-    }
-    return isAvailable;
+    return crypto.getCiphers().some(function (name) { return name === cipher; });
   },
 
   /**
@@ -152,14 +142,15 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    var privateKeyBuffer = str2buf(privateKey);
+    var privateKeyBuffer, publicKey;
+    privateKeyBuffer = str2buf(privateKey);
     if (privateKeyBuffer.length < 32) {
       privateKeyBuffer = Buffer.concat([
         Buffer.alloc(32 - privateKeyBuffer.length, 0),
         privateKeyBuffer
       ]);
     }
-    var publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
+    publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
     return "0x" + keccak(hex2utf16le(publicKey.toString("hex"))).slice(-40);
   },
 
