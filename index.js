@@ -20,21 +20,6 @@ function isFunction(f) {
   return typeof f === "function";
 }
 
-function isHexadecimal(s) {
-  if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
-  return false;
-}
-
-function isBase64(s) {
-  var index;
-
-  if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
-
-  index = s.indexOf("=");
-  if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
-  return false;
-}
-
 module.exports = {
 
   browser: !NODE_JS,
@@ -71,6 +56,19 @@ module.exports = {
     }
   },
 
+  isHex: function (s) {
+    if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
+    return false;
+  },
+
+  isBase64: function (s) {
+    var index;
+    if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
+    index = s.indexOf("=");
+    if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
+    return false;
+  },
+
   /**
    * Convert a string to a Buffer.  If encoding is not specified, hex-encoding
    * will be used if the input is valid hex.  If the input is valid base64 but
@@ -80,11 +78,9 @@ module.exports = {
    * @return {buffer} Buffer (bytearray) containing the input data.
    */
   str2buf: function (str, enc) {
-    if (!(str && str.constructor === String)) return str;
-
-    if (!enc && isHexadecimal(str)) enc = "hex";
-    if (!enc && isBase64(str)) enc = "base64";
-
+    if (!str || str.constructor !== String) return str;
+    if (!enc && this.isHex(str)) enc = "hex";
+    if (!enc && this.isBase64(str)) enc = "base64";
     return Buffer.from(str, enc);
   },
 
