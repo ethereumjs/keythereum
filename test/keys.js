@@ -23,6 +23,119 @@ keythereum.constants.quiet = !DEBUG;
 keythereum.constants.pbkdf2.c = 262144;
 keythereum.constants.scrypt.n = 262144;
 
+describe("Check if valid hex-encoded string", function () {
+  var test = function (t) {
+    it(t.description, function () {
+      t.assertions(keythereum.isHex(t.s));
+    });
+  };
+  test({
+    description: "deadbeef -> true",
+    s: "deadbeef",
+    assertions: function (isHex) {
+      assert.isTrue(isHex);
+    }
+  });
+  test({
+    description: "deadbee -> false",
+    s: "deadbee",
+    assertions: function (isHex) {
+      assert.isFalse(isHex);
+    }
+  });
+  test({
+    description: "dEaDbEeF -> true",
+    s: "dEaDbEeF",
+    assertions: function (isHex) {
+      assert.isTrue(isHex);
+    }
+  });
+  test({
+    description: "123456 -> true",
+    s: "123456",
+    assertions: function (isHex) {
+      assert.isTrue(isHex);
+    }
+  });
+  test({
+    description: "00aa33 -> true",
+    s: "00aa33",
+    assertions: function (isHex) {
+      assert.isTrue(isHex);
+    }
+  });
+  test({
+    description: "0xdEaDbEeF -> false",
+    s: "0xdEaDbEeF",
+    assertions: function (isHex) {
+      assert.isFalse(isHex);
+    }
+  });
+  test({
+    description: ".. -> false",
+    s: "..",
+    assertions: function (isHex) {
+      assert.isFalse(isHex);
+    }
+  });
+});
+
+describe("Check if valid base64-encoded string", function () {
+  var test = function (t) {
+    it(t.description, function () {
+      t.assertions(keythereum.isBase64(t.s));
+    });
+  };
+  // test cases: https://github.com/chriso/validator.js/blob/master/test/validators.js
+  [
+    "aGVsbG8gd29ybGQ=",
+    "ZGVhZGIwYg==",
+    "YWxpdmViZWVm",
+    "Zg==",
+    "Zm8=",
+    "Zm9v",
+    "Zm9vYg==",
+    "Zm9vYmE=",
+    "Zm9vYmFy",
+    "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdC4=",
+    "Vml2YW11cyBmZXJtZW50dW0gc2VtcGVyIHBvcnRhLg==",
+    "U3VzcGVuZGlzc2UgbGVjdHVzIGxlbw==",
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuMPNS1Ufof9EW/M98FNw" +
+      "UAKrwflsqVxaxQjBQnHQmiI7Vac40t8x7pIb8gLGV6wL7sBTJiPovJ0V7y7oc0Ye" +
+      "rhKh0Rm4skP2z/jHwwZICgGzBvA0rH8xlhUiTvcwDCJ0kc+fh35hNt8srZQM4619" +
+      "FTgB66Xmp4EtVyhpQV+t02g6NzK72oZI0vnAvqhpkxLeLiMCyrI416wHm5Tkukhx" +
+      "QmcL2a6hNOyu0ixX/x2kSFXApEnVrJ+/IxGyfyw8kf4N2IZpW5nEP847lpfj0SZZ" +
+      "Fwrd1mnfnDbYohX2zRptLy2ZUn06Qo9pkG5ntvFEPo9bfZeULtjYzIl6K8gJ2uGZ" +
+      "HQIDAQAB"
+  ].forEach(function (s) {
+    test({
+      description: s + " -> true",
+      s: s,
+      assertions: function (isBase64) {
+        assert.isTrue(isBase64);
+      }
+    });
+  });
+  [
+    "12345",
+    "",
+    "Vml2YW11cyBmZXJtZtesting123",
+    "Zg=",
+    "Z===",
+    "Zm=8",
+    "=m9vYg==",
+    "Zm9vYmFy===="
+  ].forEach(function (s) {
+    test({
+      description: s + " -> false",
+      s: "s",
+      assertions: function (isBase64) {
+        assert.isFalse(isBase64);
+      }
+    });
+  });
+});
+
 describe("Convert a string to a Buffer", function () {
   var test = function (t) {
     it(t.description, function () {
