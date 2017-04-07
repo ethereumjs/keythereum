@@ -21,7 +21,8 @@ function isFunction(f) {
 }
 
 function isHexadecimal(s) {
-  return s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i);
+  if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
+  return false;
 }
 
 function isBase64(s) {
