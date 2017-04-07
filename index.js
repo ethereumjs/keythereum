@@ -17,32 +17,6 @@ var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt");
 
-// convert string to buffer
-function str2buf(str, enc) {
-  if (str && str.constructor === String) {
-    if (enc) {
-      str = new Buffer(str, enc);
-    } else {
-      if (validator.isHexadecimal(str)) {
-        str = new Buffer(str, "hex");
-      } else if (validator.isBase64(str)) {
-        str = new Buffer(str, "base64");
-      } else {
-        str = new Buffer(str);
-      }
-    }
-  }
-  return str;
-}
-
-// convert hex to UTF-16LE
-function hex2utf16le(input) {
-  if (input.length % 4 !== 0) {
-    throw new Error("Can't convert input to utf16 - invalid length");
-  }
-  return new Buffer(input, "hex").toString("utf16le");
-}
-
 function isFunction(f) {
   return typeof f === "function";
 }
@@ -84,6 +58,44 @@ module.exports = {
   },
 
   /**
+   * Convert a string to a Buffer.  If encoding is not specified, hex-encoding
+   * will be used if the input is valid hex.  If the input is valid base64 but
+   * not valid hex, base64 will be used.  Otherwise, utf8 will be used.
+   * @param {string} str String to be converted.
+   * @param {string=} enc Encoding of the input string (optional).
+   * @return {buffer} Buffer (bytearray) containing the input data.
+   */
+  str2buf: function (str, enc) {
+    if (str && str.constructor === String) {
+      if (enc) {
+        str = Buffer.from(str, enc);
+      } else {
+        if (validator.isHexadecimal(str)) {
+          str = Buffer.from(str, "hex");
+        } else if (validator.isBase64(str)) {
+          str = Buffer.from(str, "base64");
+        } else {
+          str = Buffer.from(str);
+        }
+      }
+    }
+    return str;
+  },
+
+  /**
+   * Convert a hex-encoded string to UTF-16.
+   * @param {string|buffer} input Hex-encoded string.
+   * @return {string} UTF16-LE string.
+   */
+  hex2utf16le: function (input) {
+    input = this.str2buf(input, "hex");
+    if (input.length % 2 !== 0) {
+      throw new Error("Can't convert input to UTF-16: invalid length");
+    }
+    return input.toString("utf16le");
+  },
+
+  /**
    * Check if the selected cipher is available.
    * @param {string} algo Encryption algorithm.
    * @return {boolean} If available true, otherwise false.
@@ -105,9 +117,9 @@ module.exports = {
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
-    plaintext = str2buf(plaintext);
-    key = str2buf(key);
-    iv = str2buf(iv);
+    plaintext = this.str2buf(plaintext);
+    key = this.str2buf(key);
+    iv = this.str2buf(iv);
 
     cipher = crypto.createCipheriv(algo, key, iv);
     ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
@@ -127,9 +139,9 @@ module.exports = {
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
 
-    ciphertext = str2buf(ciphertext);
-    key = str2buf(key);
-    iv = str2buf(iv);
+    ciphertext = this.str2buf(ciphertext);
+    key = this.str2buf(key);
+    iv = this.str2buf(iv);
 
     decipher = crypto.createDecipheriv(algo, key, iv);
     plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
@@ -143,7 +155,7 @@ module.exports = {
    */
   privateKeyToAddress: function (privateKey) {
     var privateKeyBuffer, publicKey;
-    privateKeyBuffer = str2buf(privateKey);
+    privateKeyBuffer = this.str2buf(privateKey);
     if (privateKeyBuffer.length < 32) {
       privateKeyBuffer = Buffer.concat([
         Buffer.alloc(32 - privateKeyBuffer.length, 0),
@@ -151,7 +163,7 @@ module.exports = {
       ]);
     }
     publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
-    return "0x" + keccak(hex2utf16le(publicKey.toString("hex"))).slice(-40);
+    return "0x" + keccak(this.hex2utf16le(publicKey.toString("hex"))).slice(-40);
   },
 
   /**
@@ -167,7 +179,7 @@ module.exports = {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
       if (Buffer.isBuffer(derivedKey)) derivedKey = derivedKey.toString("hex");
       if (Buffer.isBuffer(ciphertext)) ciphertext = ciphertext.toString("hex");
-      return keccak(hex2utf16le(derivedKey.slice(32, 64) + ciphertext));
+      return keccak(this.hex2utf16le(derivedKey.slice(32, 64) + ciphertext));
     }
   },
 
@@ -192,8 +204,8 @@ module.exports = {
     options.kdfparams = options.kdfparams || {};
 
     // convert strings to buffers
-    password = str2buf(password, "utf8");
-    salt = str2buf(salt);
+    password = this.str2buf(password, "utf8");
+    salt = this.str2buf(salt);
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
@@ -202,7 +214,7 @@ module.exports = {
       }
       if (isFunction(cb)) {
         setTimeout(function () {
-          cb(new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+          cb(Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
             password,
             salt,
             options.kdfparams.n || self.constants.scrypt.n,
@@ -212,7 +224,7 @@ module.exports = {
           )), "hex"));
         }, 0);
       } else {
-        return new Buffer(scrypt.to_hex(scrypt.crypto_scrypt(
+        return Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
           password,
           salt,
           options.kdfparams.n || this.constants.scrypt.n,
@@ -228,7 +240,7 @@ module.exports = {
       if (prf === "hmac-sha256") prf = "sha256";
       if (!isFunction(cb)) {
         if (!this.crypto.pbkdf2Sync) {
-          return new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+          return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
             password.toString("utf8"),
             sjcl.codec.hex.toBits(salt.toString("hex")),
             options.kdfparams.c || self.constants.pbkdf2.c,
@@ -245,7 +257,7 @@ module.exports = {
       }
       if (!this.crypto.pbkdf2) {
         setTimeout(function () {
-          cb(new Buffer(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+          cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
             password.toString("utf8"),
             sjcl.codec.hex.toBits(salt.toString("hex")),
             options.kdfparams.c || self.constants.pbkdf2.c,
@@ -322,7 +334,7 @@ module.exports = {
     algo = options.cipher || this.constants.cipher;
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = new Buffer(this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo), "base64").toString("hex");
+    ciphertext = Buffer.from(this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo), "base64").toString("hex");
 
     keyObject = {
       address: this.privateKeyToAddress(privateKey).slice(2),
@@ -374,8 +386,8 @@ module.exports = {
    */
   dump: function (password, privateKey, salt, iv, options, cb) {
     options = options || {};
-    iv = str2buf(iv);
-    privateKey = str2buf(privateKey);
+    iv = this.str2buf(iv);
+    privateKey = this.str2buf(privateKey);
 
     // synchronous if no callback provided
     if (!isFunction(cb)) {
@@ -405,11 +417,11 @@ module.exports = {
         throw new Error("message authentication code mismatch");
       }
       if (keyObject.version === "1") {
-        key = new Buffer(keccak(hex2utf16le(derivedKey.toString("hex").slice(0, 32))), "hex").slice(0, 16);
+        key = Buffer.from(keccak(self.hex2utf16le(derivedKey.toString("hex").slice(0, 32))), "hex").slice(0, 16);
       } else {
         key = derivedKey.slice(0, 16);
       }
-      return new Buffer(self.decrypt(ciphertext, key, iv, algo), "hex");
+      return Buffer.from(self.decrypt(ciphertext, key, iv, algo), "hex");
     }
 
     iv = keyObjectCrypto.cipherparams.iv;
@@ -417,9 +429,9 @@ module.exports = {
     ciphertext = keyObjectCrypto.ciphertext;
     algo = keyObjectCrypto.cipher;
 
-    iv = str2buf(iv);
-    salt = str2buf(salt);
-    ciphertext = str2buf(ciphertext);
+    iv = this.str2buf(iv);
+    salt = this.str2buf(salt);
+    ciphertext = this.str2buf(ciphertext);
 
     if (keyObjectCrypto.kdf === "scrypt") {
       this.constants.scrypt.n = keyObjectCrypto.kdfparams.n;

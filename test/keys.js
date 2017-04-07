@@ -23,6 +23,159 @@ keythereum.constants.quiet = !DEBUG;
 keythereum.constants.pbkdf2.c = 262144;
 keythereum.constants.scrypt.n = 262144;
 
+describe("Convert a string to a Buffer", function () {
+  var test = function (t) {
+    it(t.description, function () {
+      t.assertions(keythereum.str2buf(t.params.str, t.params.enc));
+    });
+  };
+  test({
+    description: "[ascii] hello world",
+    params: {
+      str: "hello world",
+      enc: "ascii"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[utf8] hello world",
+    params: {
+      str: "hello world",
+      enc: "utf8"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[hex] 68656c6c6f20776f726c64",
+    params: {
+      str: "68656c6c6f20776f726c64",
+      enc: "hex"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[inferred hex] 68656c6c6f20776f726c64",
+    params: {
+      str: "68656c6c6f20776f726c64"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[inferred utf8] hello world",
+    params: {
+      str: "hello world"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[inferred utf8] hello",
+    params: {
+      str: "hello"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello");
+    }
+  });
+  test({
+    description: "[inferred base64] aGVsbG8gd29ybGQ=",
+    params: {
+      str: "aGVsbG8gd29ybGQ="
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[inferred base64] ZGVhZGIwYg==",
+    params: {
+      str: "ZGVhZGIwYg=="
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "deadb0b");
+    }
+  });
+  test({
+    description: "[inferred base64] aGVsbG8gd29ybGQ=",
+    params: {
+      str: "aGVsbG8gd29ybGQ="
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "hello world");
+    }
+  });
+  test({
+    description: "[inferred base64] YWxpdmViZWVm",
+    params: {
+      str: "YWxpdmViZWVm"
+    },
+    assertions: function (output) {
+      assert.strictEqual(output.toString("utf8"), "alivebeef");
+    }
+  });
+});
+
+describe("Convert a hex-encoded string or buffer to a UTF-16 string", function () {
+  var test = function (t) {
+    it("[string] " + t.description, function () {
+      var output;
+      try {
+        output = keythereum.hex2utf16le(t.input);
+      } catch (exc) {
+        output = exc;
+      }
+      t.assertions(output);
+    });
+    it("[buffer] " + t.description, function () {
+      var output;
+      try {
+        output = keythereum.hex2utf16le(Buffer.from(t.input, "hex"));
+      } catch (exc) {
+        output = exc;
+      }
+      t.assertions(output);
+    });
+  };
+  test({
+    description: "deadbeef -> 귞",
+    input: "deadbeef",
+    assertions: function (output) {
+      assert.strictEqual(output, "귞");
+    }
+  });
+  test({
+    description: "0326 -> ☃",
+    input: "0326",
+    assertions: function (output) {
+      assert.strictEqual(output, "☃");
+    }
+  });
+  test({
+    description: "03260326 -> ☃☃",
+    input: "03260326",
+    assertions: function (output) {
+      assert.strictEqual(output, "☃☃");
+    }
+  });
+  test({
+    description: "032603 should throw an invalid length error",
+    input: "032603",
+    assertions: function (output) {
+      assert.instanceOf(output, Error);
+      assert.strictEqual(output.message, "Can't convert input to UTF-16: invalid length");
+    }
+  });
+});
+
 describe("Check if selected cipher is available", function () {
   var test = function (t) {
     it(t.description, function () {
@@ -74,8 +227,8 @@ describe("Derive Ethereum address from private key", function () {
   var test = function (t) {
     it(t.description + ": " + t.privateKey, function () {
       t.assertions(keythereum.privateKeyToAddress(t.privateKey));
-      t.assertions(keythereum.privateKeyToAddress(new Buffer(t.privateKey, "hex")));
-      t.assertions(keythereum.privateKeyToAddress(new Buffer(t.privateKey, "hex").toString("base64")));
+      t.assertions(keythereum.privateKeyToAddress(Buffer.from(t.privateKey, "hex")));
+      t.assertions(keythereum.privateKeyToAddress(Buffer.from(t.privateKey, "hex").toString("base64")));
     });
   };
   test({
@@ -225,28 +378,28 @@ describe("Encryption", function () {
   };
 
   runtests({
-    plaintext: new Buffer(
+    plaintext: Buffer.from(
       "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
       "hex"
     ),
-    ciphertext: new Buffer(
+    ciphertext: Buffer.from(
       "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
       "hex"
     ),
-    key: new Buffer("f06d69cdc7da0faffb1008270bca38f5", "hex"),
-    iv: new Buffer("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
+    key: Buffer.from("f06d69cdc7da0faffb1008270bca38f5", "hex"),
+    iv: Buffer.from("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
   });
   runtests({
-    plaintext: new Buffer(
+    plaintext: Buffer.from(
       "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
       "hex"
     ),
-    ciphertext: new Buffer(
+    ciphertext: Buffer.from(
       "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
       "hex"
     ),
-    key: new Buffer("fac192ceb5fd772906bea3e118a69e8b", "hex"),
-    iv: new Buffer("83dbcc02d8ccb40e466191a123791e0e", "hex")
+    key: Buffer.from("fac192ceb5fd772906bea3e118a69e8b", "hex"),
+    iv: Buffer.from("83dbcc02d8ccb40e466191a123791e0e", "hex")
   });
 });
 
@@ -302,28 +455,28 @@ describe("Decryption", function () {
     });
   };
   runtests({
-    plaintext: new Buffer(
+    plaintext: Buffer.from(
       "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
       "hex"
     ),
-    ciphertext: new Buffer(
+    ciphertext: Buffer.from(
       "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
       "hex"
     ),
-    key: new Buffer("f06d69cdc7da0faffb1008270bca38f5", "hex"),
-    iv: new Buffer("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
+    key: Buffer.from("f06d69cdc7da0faffb1008270bca38f5", "hex"),
+    iv: Buffer.from("6087dab2f9fdbbfaddc31a909735c1e6", "hex")
   });
   runtests({
-    plaintext: new Buffer(
+    plaintext: Buffer.from(
       "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
       "hex"
     ),
-    ciphertext: new Buffer(
+    ciphertext: Buffer.from(
       "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
       "hex"
     ),
-    key: new Buffer("fac192ceb5fd772906bea3e118a69e8b", "hex"),
-    iv: new Buffer("83dbcc02d8ccb40e466191a123791e0e", "hex")
+    key: Buffer.from("fac192ceb5fd772906bea3e118a69e8b", "hex"),
+    iv: Buffer.from("83dbcc02d8ccb40e466191a123791e0e", "hex")
   });
 });
 
@@ -483,12 +636,12 @@ describe("Dump private key", function () {
   test({
     input: {
       password: "testpassword",
-      privateKey: new Buffer(
+      privateKey: Buffer.from(
         "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
         "hex"
       ),
       salt: "ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd",
-      iv: new Buffer("6087dab2f9fdbbfaddc31a909735c1e6", "hex"),
+      iv: Buffer.from("6087dab2f9fdbbfaddc31a909735c1e6", "hex"),
       kdf: "pbkdf2-sha256"
     },
     expected: {
