@@ -1,7 +1,8 @@
 "use strict";
 
 var assert = require("chai").assert;
-var validator = require("validator");
+var isUUID = require("validator").isUUID;
+var isHex = require("../").isHex;
 
 module.exports = {
 
@@ -22,7 +23,7 @@ module.exports = {
     assert.strictEqual(keyObjectCrypto.cipherparams.iv.length, 32);
     assert.property(keyObjectCrypto, "ciphertext");
     assert(keyObjectCrypto.ciphertext.length >= 64);
-    assert.isTrue(validator.isHexadecimal(keyObjectCrypto.ciphertext));
+    assert.isTrue(isHex(keyObjectCrypto.ciphertext));
     assert.property(keyObjectCrypto, "kdf");
     assert(keyObjectCrypto.kdf === "pbkdf2" || keyObjectCrypto.kdf === "scrypt");
     assert.property(keyObjectCrypto, "kdfparams");
@@ -41,13 +42,13 @@ module.exports = {
     assert(keyObjectCrypto.kdfparams.dklen >= 32);
     assert.property(keyObjectCrypto.kdfparams, "salt");
     assert(keyObjectCrypto.kdfparams.salt.length >= 32);
-    assert.isTrue(validator.isHexadecimal(keyObjectCrypto.kdfparams.salt));
+    assert.isTrue(isHex(keyObjectCrypto.kdfparams.salt));
     assert.property(keyObjectCrypto, "mac");
     assert.strictEqual(keyObjectCrypto.mac.length, 64);
-    assert.isTrue(validator.isHexadecimal(keyObjectCrypto.mac));
+    assert.isTrue(isHex(keyObjectCrypto.mac));
     assert.property(keyObject, "id");
     assert.strictEqual(keyObject.id.length, 36);
-    assert.isTrue(validator.isUUID(keyObject.id));
+    assert.isTrue(isUUID(keyObject.id));
     assert.property(keyObject, "version");
     assert(keyObject.version === "1" || keyObject.version === 3);
   },

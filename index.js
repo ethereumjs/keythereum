@@ -12,7 +12,6 @@ var fs = (NODE_JS) ? require("fs") : null;
 var crypto = require("crypto");
 var sjcl = require("sjcl");
 var uuid = require("uuid");
-var validator = require("validator");
 var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt");
@@ -57,6 +56,19 @@ module.exports = {
     }
   },
 
+  isHex: function (s) {
+    if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
+    return false;
+  },
+
+  isBase64: function (s) {
+    var index;
+    if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
+    index = s.indexOf("=");
+    if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
+    return false;
+  },
+
   /**
    * Convert a string to a Buffer.  If encoding is not specified, hex-encoding
    * will be used if the input is valid hex.  If the input is valid base64 but
@@ -66,20 +78,10 @@ module.exports = {
    * @return {buffer} Buffer (bytearray) containing the input data.
    */
   str2buf: function (str, enc) {
-    if (str && str.constructor === String) {
-      if (enc) {
-        str = Buffer.from(str, enc);
-      } else {
-        if (validator.isHexadecimal(str)) {
-          str = Buffer.from(str, "hex");
-        } else if (validator.isBase64(str)) {
-          str = Buffer.from(str, "base64");
-        } else {
-          str = Buffer.from(str);
-        }
-      }
-    }
-    return str;
+    if (!str || str.constructor !== String) return str;
+    if (!enc && this.isHex(str)) enc = "hex";
+    if (!enc && this.isBase64(str)) enc = "base64";
+    return Buffer.from(str, enc);
   },
 
   /**
