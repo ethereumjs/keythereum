@@ -31,7 +31,8 @@ function isBase64(s) {
   if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
 
   index = s.indexOf("=");
-  return index === -1 || s.slice(index).match(/={1,2}/);
+  if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
+  return false;
 }
 
 module.exports = {
