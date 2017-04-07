@@ -13,7 +13,7 @@ var crypto = require("crypto");
 var sjcl = require("sjcl");
 var uuid = require("uuid");
 var validator = require("validator");
-var privateToAddress = require("ethereumjs-util").privateToAddress;
+var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
 var scrypt = require("./lib/scrypt");
 
@@ -142,7 +142,15 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    return "0x" + privateToAddress(str2buf(privateKey)).toString("hex");
+    var privateKeyBuffer = str2buf(privateKey);
+    if (privateKeyBuffer.length < 32) {
+      privateKeyBuffer = Buffer.concat([
+        Buffer.alloc(32 - privateKeyBuffer.length, 0),
+        privateKeyBuffer
+      ]);
+    }
+    var publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
+    return "0x" + keccak(hex2utf16le(publicKey.toString("hex"))).slice(-40);
   },
 
   /**

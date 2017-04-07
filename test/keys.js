@@ -6,7 +6,6 @@ var fs = require("fs");
 var path = require("path");
 var crypto = require("crypto");
 var assert = require("chai").assert;
-var privateToAddress = require("ethereumjs-util").privateToAddress;
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
 var DEBUG = false;
@@ -16,9 +15,6 @@ var TIMEOUT = 120000;
 
 // create private key
 var privateKey = crypto.randomBytes(32);
-
-// create address from private key
-var address = privateToAddress(privateKey).toString("hex");
 
 // suppress logging
 keythereum.constants.quiet = !DEBUG;
@@ -75,38 +71,54 @@ describe("Private key recovery", function () {
 });
 
 describe("Derive Ethereum address from private key", function () {
-
   var test = function (t) {
-    it(JSON.stringify(t.privateKey) + " -> " + t.address, function () {
-      assert.strictEqual(keythereum.privateKeyToAddress(t.privateKey), "0x" + t.address);
+    it(t.description + ": " + t.privateKey, function () {
+      t.assertions(keythereum.privateKeyToAddress(t.privateKey));
+      t.assertions(keythereum.privateKeyToAddress(new Buffer(t.privateKey, "hex")));
+      t.assertions(keythereum.privateKeyToAddress(new Buffer(t.privateKey, "hex").toString("base64")));
     });
   };
-
-  var runtests = function (t) {
-    test({
-      privateKey: t.privateKey,
-      address: t.address
-    });
-    test({
-      privateKey: t.privateKey.toString("hex"),
-      address: t.address
-    });
-    test({
-      privateKey: t.privateKey.toString("base64"),
-      address: t.address
-    });
-  };
-
-  runtests({
-    privateKey: new Buffer(privateKey, "hex"),
-    address: address
+  test({
+    description: "32-byte private key",
+    privateKey: "d1b1178d3529626a1a93e073f65028370d14c7eb0936eb42abef05db6f37ad7d",
+    assertions: function (address) {
+      assert.strictEqual(address, "0xcb61d5a9c4896fb9658090b597ef0e7be6f7b67e");
+    }
   });
-  runtests({
-    privateKey: new Buffer(
-      "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
-      "hex"
-    ),
-    address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b"
+  test({
+    description: "32-byte private key",
+    privateKey: "7a28b5ba57c53603b0b07b56bba752f7784bf506fa95edc395f5cf6c7514fe9d",
+    assertions: function (address) {
+      assert.strictEqual(address, "0x008aeeda4d805471df9b2a5b0f38a0c3bcba786b");
+    }
+  });
+  test({
+    description: "32-byte private key",
+    privateKey: "6445042b8e8cc121fb6a8985606a84b4cb07dac6dfb3633e769ec27dd2370984",
+    assertions: function (address) {
+      assert.strictEqual(address, "0xe1e212c353f7a682693c198ba5ff85849f8300cc");
+    }
+  });
+  test({
+    description: "32-byte private key",
+    privateKey: "490127c2782fb55943beeb31943ec26f48a9a5121cd7e91799eb354d30d46529",
+    assertions: function (address) {
+      assert.strictEqual(address, "0xf0c4ee355432a7c7da12bdef04543723d110d591");
+    }
+  });
+  test({
+    description: "31-byte private key",
+    privateKey: "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35",
+    assertions: function (address) {
+      assert.strictEqual(address, "0xd1e64e5480bfaf733ba7d48712decb8227797a4e");
+    }
+  });
+  test({
+    description: "30-byte private key",
+    privateKey: "81c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018",
+    assertions: function (address) {
+      assert.strictEqual(address, "0x31e9d1e6d844bd3a536800ef8d8be6a9975db509");
+    }
   });
 });
 
