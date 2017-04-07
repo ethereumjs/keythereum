@@ -278,7 +278,7 @@ module.exports = {
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
-    var keyBytes, ivBytes, totalBytes;
+    var keyBytes, ivBytes;
     params = params || {};
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
@@ -297,10 +297,9 @@ module.exports = {
     }
 
     // asynchronous key generation
-    // generate private key
     crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, bytes) {
-      if (err) cb(err);
-      else cb(bytes2object(bytes));
+      if (err) return cb(err);
+      cb(bytes2object(bytes));
     });
   },
 

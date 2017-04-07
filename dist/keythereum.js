@@ -98,17 +98,7 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    var i, isAvailable, availableCiphers, numCiphers;
-    isAvailable = false;
-    availableCiphers = crypto.getCiphers();
-    numCiphers = availableCiphers.length;
-    for (i = 0; i < numCiphers; ++i) {
-      if (cipher === availableCiphers[i]) {
-        isAvailable = true;
-        break;
-      }
-    }
-    return isAvailable;
+    return crypto.getCiphers().some(function (name) { return name === cipher; });
   },
 
   /**
@@ -161,11 +151,15 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    var privateKeyBuffer = str2buf(privateKey);
-    var publicKey = secp256k1.publicKeyCreate(Buffer.concat([
-      Buffer.alloc(32 - privateKeyBuffer.length, 0),
-      privateKeyBuffer
-    ]), false).slice(1);
+    var privateKeyBuffer, publicKey;
+    privateKeyBuffer = str2buf(privateKey);
+    if (privateKeyBuffer.length < 32) {
+      privateKeyBuffer = Buffer.concat([
+        Buffer.alloc(32 - privateKeyBuffer.length, 0),
+        privateKeyBuffer
+      ]);
+    }
+    publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
     return "0x" + keccak(hex2utf16le(publicKey.toString("hex"))).slice(-40);
   },
 
@@ -298,34 +292,23 @@ module.exports = {
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
-    // synchronous key generation if callback not provided
-    if (!isFunction(cb)) {
+    function bytes2object(bytes) {
       return {
-        privateKey: crypto.randomBytes(keyBytes),
-        iv: crypto.randomBytes(ivBytes),
-        salt: crypto.randomBytes(keyBytes)
+        privateKey: bytes.slice(0, keyBytes),
+        iv: bytes.slice(keyBytes, keyBytes + ivBytes),
+        salt: bytes.slice(keyBytes + ivBytes)
       };
     }
 
+    // synchronous key generation if callback not provided
+    if (!isFunction(cb)) {
+      return bytes2object(crypto.randomBytes(keyBytes + ivBytes + keyBytes));
+    }
+
     // asynchronous key generation
-    // generate private key
-    crypto.randomBytes(keyBytes, function (ex, privateKey) {
-      if (ex) return cb(ex);
-
-      // generate random initialization vector
-      crypto.randomBytes(ivBytes, function (ex, iv) {
-        if (ex) return cb(ex);
-
-        // generate random salt
-        crypto.randomBytes(keyBytes, function (ex, salt) {
-          if (ex) return cb(ex);
-          cb({
-            privateKey: privateKey,
-            iv: iv,
-            salt: salt
-          });
-        });
-      });
+    crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, bytes) {
+      if (err) return cb(err);
+      cb(bytes2object(bytes));
     });
   },
 
