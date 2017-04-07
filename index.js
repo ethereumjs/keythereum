@@ -152,7 +152,14 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    var publicKey = secp256k1.publicKeyCreate(str2buf(privateKey), false).slice(1);
+    var privateKeyBuffer = str2buf(privateKey);
+    if (privateKeyBuffer.length < 32) {
+      privateKeyBuffer = Buffer.concat([
+        Buffer.alloc(32 - privateKeyBuffer.length, 0),
+        privateKeyBuffer
+      ]);
+    }
+    var publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
     return "0x" + keccak(hex2utf16le(publicKey.toString("hex"))).slice(-40);
   },
 
