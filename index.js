@@ -15,7 +15,7 @@ var uuid = require("uuid");
 var validator = require("validator");
 var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
-var scrypt = require("./lib/scrypt");
+var createScrypt = require("./lib/scrypt");
 
 function isFunction(f) {
   return typeof f === "function";
@@ -195,7 +195,7 @@ module.exports = {
    * @return {buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
-    var prf, self = this;
+    var prf, scrypt, self = this;
     if (typeof password === "undefined" || password === null || !salt) {
       throw new Error("Must provide password and salt to derive a key");
     }
@@ -209,9 +209,7 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (isFunction(scrypt)) {
-        scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
-      }
+      scrypt = createScrypt(options.kdfparams.memory || self.constants.scrypt.memory);
       if (isFunction(cb)) {
         setTimeout(function () {
           cb(Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
