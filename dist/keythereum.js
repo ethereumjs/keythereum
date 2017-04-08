@@ -14,10 +14,8 @@ global.keythereum = keythereum;
 
 "use strict";
 
-var NODE_JS = (typeof module !== "undefined") && process && !process.browser;
-
-var path = (NODE_JS) ? require("path") : null;
-var fs = (NODE_JS) ? require("fs") : null;
+var path = require("path");
+var fs = require("fs");
 var crypto = require("crypto");
 var sjcl = require("sjcl");
 var uuid = require("uuid");
@@ -31,7 +29,7 @@ function isFunction(f) {
 
 module.exports = {
 
-  browser: !NODE_JS,
+  browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
   crypto: crypto,
 

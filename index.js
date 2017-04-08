@@ -20,7 +20,7 @@ function isFunction(f) {
 
 module.exports = {
 
-  browser: process.browser,
+  browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
   crypto: crypto,
 
