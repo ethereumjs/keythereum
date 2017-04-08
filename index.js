@@ -11,11 +11,15 @@ var crypto = require("crypto");
 var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
-var keccak = require("./lib/keccak");
+var createKeccakHash = require("keccak/js");
 var scrypt = require("./lib/scrypt");
 
 function isFunction(f) {
   return typeof f === "function";
+}
+
+function keccak256(buffer) {
+  return createKeccakHash("keccak256").update(buffer).digest();
 }
 
 module.exports = {
@@ -163,7 +167,7 @@ module.exports = {
       ]);
     }
     publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
-    return "0x" + keccak(this.hex2utf16le(publicKey.toString("hex"))).slice(-40);
+    return "0x" + keccak256(publicKey).slice(-20).toString("hex");
   },
 
   /**
@@ -177,9 +181,9 @@ module.exports = {
    */
   getMAC: function (derivedKey, ciphertext) {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
-      if (Buffer.isBuffer(derivedKey)) derivedKey = derivedKey.toString("hex");
-      if (Buffer.isBuffer(ciphertext)) ciphertext = ciphertext.toString("hex");
-      return keccak(this.hex2utf16le(derivedKey.slice(32, 64) + ciphertext));
+      derivedKey = this.str2buf(derivedKey);
+      ciphertext = this.str2buf(ciphertext);
+      return keccak256(Buffer.concat([derivedKey.slice(16, 32), ciphertext])).toString("hex");
     }
   },
 
@@ -417,7 +421,7 @@ module.exports = {
         throw new Error("message authentication code mismatch");
       }
       if (keyObject.version === "1") {
-        key = Buffer.from(keccak(self.hex2utf16le(derivedKey.toString("hex").slice(0, 32))), "hex").slice(0, 16);
+        key = keccak256(derivedKey.slice(0, 16)).slice(0, 16);
       } else {
         key = derivedKey.slice(0, 16);
       }
