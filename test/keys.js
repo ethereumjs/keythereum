@@ -1253,17 +1253,6 @@ describe("Recover plaintext private key from key object", function () {
     },
     expected: "d1b1178d3529626a1a93e073f65028370d14c7eb0936eb42abef05db6f37ad7d"
   });
-  // cipherText=[149, 23, 205, 91, 219, 230, 144, 118, 249, 191, 80, 87, 36, 140, 108, 5, 1, 65, 233, 112, 239, 163, 108, 229, 54, 146, 213, 213, 154, 57, 132]
-  // "9517cd5bdbe69076f9bf5057248c6c050141e970efa36ce53692d5d59a3984"
-  // derivedKeyFirst16=[84, 242, 184, 28, 212, 93, 112, 185, 156, 63, 71, 38, 197, 134, 197, 205]
-  // "54f2b81cd45d70b99c3f4726c586c5cd"
-  // derivedKeyLast16=[12, 215, 137, 212, 157, 44, 91, 203, 49, 121, 246, 84, 234, 79, 179, 164]
-  // "0cd789d49d2c5bcb3179f654ea4fb3a4"
-  // iv=[224, 196, 17, 48, 163, 35, 173, 193, 68, 111, 200, 47, 114, 75, 202, 47]
-  // "e0c41130a323adc1446fc82f724bca2f"
-  // privateKey=[250, 123, 61, 183, 61, 199, 223, 223, 140, 95, 189, 183, 150, 215, 65, 228, 72, 134, 40, 196, 31, 196, 254, 189, 145, 96, 168, 102, 186, 15, 53]
-  // "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35"
-  // address=0xd1e64e5480bfaf733ba7d48712decb8227797a4e
   test({
     input: {
       password: "foo",
@@ -1316,7 +1305,7 @@ describe("Recover plaintext private key from key object", function () {
         version: 3
       }
     },
-    expected: "81c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018",
+    expected: "81c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018"
   });
   test({
     input: {

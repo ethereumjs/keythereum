@@ -181,9 +181,10 @@ module.exports = {
    */
   getMAC: function (derivedKey, ciphertext) {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
-      derivedKey = this.str2buf(derivedKey);
-      ciphertext = this.str2buf(ciphertext);
-      return keccak256(Buffer.concat([derivedKey.slice(16, 32), ciphertext])).toString("hex");
+      return keccak256(Buffer.concat([
+        this.str2buf(derivedKey).slice(16, 32),
+        this.str2buf(ciphertext)
+      ])).toString("hex");
     }
   },
 
