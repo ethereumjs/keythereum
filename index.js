@@ -56,16 +56,26 @@ module.exports = {
     }
   },
 
-  isHex: function (s) {
-    if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
+  /**
+   * Check whether a string is valid hex.
+   * @param {string} str String to validate.
+   * @return {boolean} True if the string is valid hex, false otherwise.
+   */
+  isHex: function (str) {
+    if (str.length % 2 === 0 && str.match(/^[0-9a-f]+$/i)) return true;
     return false;
   },
 
-  isBase64: function (s) {
+  /**
+   * Check whether a string is valid base-64.
+   * @param {string} str String to validate.
+   * @return {boolean} True if the string is valid base-64, false otherwise.
+   */
+  isBase64: function (str) {
     var index;
-    if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
-    index = s.indexOf("=");
-    if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
+    if (str.length % 4 > 0 || str.match(/[^0-9a-z+\/=]/i)) return false;
+    index = str.indexOf("=");
+    if (index === -1 || str.slice(index).match(/={1,2}/)) return true;
     return false;
   },
 
