@@ -1,6 +1,6 @@
 {
   "name": "keythereum",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Create, import and export Ethereum keys",
   "main": "index.js",
   "directories": {
