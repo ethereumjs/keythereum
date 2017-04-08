@@ -127,46 +127,36 @@ module.exports = {
 
   /**
    * Symmetric private key encryption using secret (derived) key.
-   * @param {buffer|string} plaintext Text to be encrypted.
+   * @param {buffer|string} plaintext Data to be encrypted.
    * @param {buffer|string} key Secret key.
    * @param {buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {string} Base64 encrypted text.
+   * @return {buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
     var cipher, ciphertext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-
-    plaintext = this.str2buf(plaintext);
-    key = this.str2buf(key);
-    iv = this.str2buf(iv);
-
-    cipher = crypto.createCipheriv(algo, key, iv);
-    ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
-    return ciphertext + cipher.final("base64");
+    cipher = crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    ciphertext = cipher.update(this.str2buf(plaintext));
+    return Buffer.concat([ciphertext, cipher.final()]);
   },
 
   /**
    * Symmetric private key decryption using secret (derived) key.
-   * @param {buffer|string} ciphertext Text to be decrypted.
+   * @param {buffer|string} ciphertext Data to be decrypted.
    * @param {buffer|string} key Secret key.
    * @param {buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {string} Hex decryped text.
+   * @return {buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
     var decipher, plaintext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-
-    ciphertext = this.str2buf(ciphertext);
-    key = this.str2buf(key);
-    iv = this.str2buf(iv);
-
-    decipher = crypto.createDecipheriv(algo, key, iv);
-    plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
-    return plaintext + decipher.final("hex");
+    decipher = crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    plaintext = decipher.update(this.str2buf(ciphertext));
+    return Buffer.concat([plaintext, decipher.final()]);
   },
 
   /**
@@ -355,7 +345,7 @@ module.exports = {
     algo = options.cipher || this.constants.cipher;
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = Buffer.from(this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo), "base64").toString("hex");
+    ciphertext = this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo).toString("hex");
 
     keyObject = {
       address: this.privateKeyToAddress(privateKey).slice(2),
@@ -442,7 +432,7 @@ module.exports = {
       } else {
         key = derivedKey.slice(0, 16);
       }
-      return Buffer.from(self.decrypt(ciphertext, key, iv, algo), "hex");
+      return self.decrypt(ciphertext, key, iv, algo);
     }
 
     iv = this.str2buf(keyObjectCrypto.cipherparams.iv);
