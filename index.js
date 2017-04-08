@@ -8,7 +8,6 @@
 var path = require("path");
 var fs = require("fs");
 var crypto = require("crypto");
-var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
@@ -239,14 +238,6 @@ module.exports = {
       prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
       if (prf === "hmac-sha256") prf = "sha256";
       if (!isFunction(cb)) {
-        if (!this.crypto.pbkdf2Sync) {
-          return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-            password.toString("utf8"),
-            sjcl.codec.hex.toBits(salt.toString("hex")),
-            options.kdfparams.c || self.constants.pbkdf2.c,
-            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-          )), "hex");
-        }
         return crypto.pbkdf2Sync(
           password,
           salt,
@@ -255,28 +246,18 @@ module.exports = {
           prf
         );
       }
-      if (!this.crypto.pbkdf2) {
-        setTimeout(function () {
-          cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-            password.toString("utf8"),
-            sjcl.codec.hex.toBits(salt.toString("hex")),
-            options.kdfparams.c || self.constants.pbkdf2.c,
-            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-          )), "hex"));
-        }, 0);
-      } else {
-        crypto.pbkdf2(
-          password,
-          salt,
-          options.kdfparams.c || this.constants.pbkdf2.c,
-          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-          prf,
-          function (ex, derivedKey) {
-            if (ex) return cb(ex);
-            cb(derivedKey);
-          }
-        );
-      }
+
+      crypto.pbkdf2(
+        password,
+        salt,
+        options.kdfparams.c || this.constants.pbkdf2.c,
+        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+        prf,
+        function (ex, derivedKey) {
+          if (ex) return cb(ex);
+          cb(derivedKey);
+        }
+      );
     }
   },
 

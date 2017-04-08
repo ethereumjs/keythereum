@@ -637,33 +637,6 @@ describe("Key derivation", function () {
         }
       );
     });
-    it("using sjcl: " + t.input.kdf, function (done) {
-      var derivedKey;
-      this.timeout(TIMEOUT);
-      keythereum.crypto.pbkdf2 = undefined;
-      keythereum.crypto.pbkdf2Sync = undefined;
-
-      // synchronous
-      derivedKey = keythereum.deriveKey(
-        t.input.password,
-        t.input.salt,
-        { kdf: t.input.kdf }
-      );
-      if (derivedKey.error) return done(derivedKey);
-      assert.strictEqual(derivedKey.toString("hex"), t.expected);
-
-      // asynchronous
-      keythereum.deriveKey(
-        t.input.password,
-        t.input.salt,
-        { kdf: t.input.kdf },
-        function (derivedKey) {
-          if (derivedKey.error) return done(derivedKey);
-          assert.strictEqual(derivedKey.toString("hex"), t.expected);
-          done();
-        }
-      );
-    });
   };
 
   test({
