@@ -426,26 +426,13 @@ module.exports = {
       return Buffer.from(self.decrypt(ciphertext, key, iv, algo), "hex");
     }
 
-    iv = keyObjectCrypto.cipherparams.iv;
-    salt = keyObjectCrypto.kdfparams.salt;
-    ciphertext = keyObjectCrypto.ciphertext;
+    iv = this.str2buf(keyObjectCrypto.cipherparams.iv);
+    salt = this.str2buf(keyObjectCrypto.kdfparams.salt);
+    ciphertext = this.str2buf(keyObjectCrypto.ciphertext);
     algo = keyObjectCrypto.cipher;
 
-    iv = this.str2buf(iv);
-    salt = this.str2buf(salt);
-    ciphertext = this.str2buf(ciphertext);
-
-    if (keyObjectCrypto.kdf === "scrypt") {
-      this.constants.scrypt.n = keyObjectCrypto.kdfparams.n;
-      this.constants.scrypt.r = keyObjectCrypto.kdfparams.r;
-      this.constants.scrypt.p = keyObjectCrypto.kdfparams.p;
-      this.constants.scrypt.dklen = keyObjectCrypto.kdfparams.dklen;
-    } else {
-      if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
-        throw new Error("PBKDF2 only supported with HMAC-SHA256");
-      }
-      this.constants.pbkdf2.c = keyObjectCrypto.kdfparams.c;
-      this.constants.pbkdf2.dklen = keyObjectCrypto.kdfparams.dklen;
+    if (keyObjectCrypto.kdf === "pbkdf2" && keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
+      throw new Error("PBKDF2 only supported with HMAC-SHA256");
     }
 
     // derive secret key from password

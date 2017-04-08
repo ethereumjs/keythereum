@@ -1151,6 +1151,47 @@ describe("Import from keystore file", function () {
   });
 });
 
+describe("Recover do not affects `.constants`", function () {
+  var c, n;
+
+  before(function () {
+    c = keythereum.constants.pbkdf2.c;
+    n = keythereum.constants.scrypt.n;
+    keythereum.constants.pbkdf2.c = 16;
+    keythereum.constants.scrypt.n = 16;
+  });
+
+  after(function () {
+    keythereum.constants.pbkdf2.c = c;
+    keythereum.constants.scrypt.n = n;
+  });
+
+  function test(kdf) {
+    var keys1, keys2;
+    var keyObject1, keyObject1v2, keyObject2;
+    var recover2;
+
+    keys1 = keythereum.create();
+    keyObject1 = keythereum.dump("pass1", keys1.privateKey, keys1.salt, keys1.iv, { kdf: kdf });
+
+    keys2 = keythereum.create();
+    keyObject2 = keythereum.dump("pass2", keys2.privateKey, keys2.salt, keys2.iv, { kdf: kdf, kdfparams: { c: 32, n: 32 } });
+    recover2 = keythereum.recover("pass2", keyObject2);
+    assert.ok(keys2.privateKey.equals(recover2));
+
+    keyObject1v2 = keythereum.dump("pass1", keys1.privateKey, keys1.salt, keys1.iv, { kdf: kdf });
+    assert.deepEqual(keyObject1.crypto, keyObject1v2.crypto);
+  }
+
+  it("pbkdf2", function () {
+    test("pbkdf2");
+  });
+
+  it("scrypt", function () {
+    test("scrypt");
+  });
+});
+
 describe("Recover plaintext private key from key object", function () {
 
   var test = function (t) {
