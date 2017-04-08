@@ -447,7 +447,7 @@ describe("Encryption", function () {
       var oldCipher = keythereum.constants.cipher;
       keythereum.constants.cipher = t.input.cipher;
       assert.strictEqual(
-        keythereum.encrypt(t.input.plaintext, t.input.key, t.input.iv),
+        keythereum.encrypt(t.input.plaintext, t.input.key, t.input.iv).toString("base64"),
         t.expected.ciphertext
       );
       keythereum.constants.cipher = oldCipher;
@@ -519,13 +519,12 @@ describe("Encryption", function () {
 describe("Decryption", function () {
 
   var test = function (t) {
-    var label = t.input.cipher + ": " + JSON.stringify(t.input.ciphertext)+
-      " -> " + t.expected.plaintext;
+    var label = t.input.cipher + ": " + JSON.stringify(t.input.ciphertext) + " -> " + t.expected.plaintext;
     it(label, function () {
       var oldCipher = keythereum.constants.cipher;
       keythereum.constants.cipher = t.input.cipher;
       assert.strictEqual(
-        keythereum.decrypt(t.input.ciphertext, t.input.key, t.input.iv),
+        keythereum.decrypt(t.input.ciphertext, t.input.key, t.input.iv).toString("hex"),
         t.expected.plaintext
       );
       keythereum.constants.cipher = oldCipher;

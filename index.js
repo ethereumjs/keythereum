@@ -54,16 +54,26 @@ module.exports = {
     }
   },
 
-  isHex: function (s) {
-    if (s.length % 2 === 0 && s.match(/^[0-9a-f]+$/i)) return true;
+  /**
+   * Check whether a string is valid hex.
+   * @param {string} str String to validate.
+   * @return {boolean} True if the string is valid hex, false otherwise.
+   */
+  isHex: function (str) {
+    if (str.length % 2 === 0 && str.match(/^[0-9a-f]+$/i)) return true;
     return false;
   },
 
-  isBase64: function (s) {
+  /**
+   * Check whether a string is valid base-64.
+   * @param {string} str String to validate.
+   * @return {boolean} True if the string is valid base-64, false otherwise.
+   */
+  isBase64: function (str) {
     var index;
-    if (s.length % 4 > 0 || s.match(/[^0-9a-z+\/=]/i)) return false;
-    index = s.indexOf("=");
-    if (index === -1 || s.slice(index).match(/={1,2}/)) return true;
+    if (str.length % 4 > 0 || str.match(/[^0-9a-z+\/=]/i)) return false;
+    index = str.indexOf("=");
+    if (index === -1 || str.slice(index).match(/={1,2}/)) return true;
     return false;
   },
 
@@ -106,46 +116,36 @@ module.exports = {
 
   /**
    * Symmetric private key encryption using secret (derived) key.
-   * @param {buffer|string} plaintext Text to be encrypted.
+   * @param {buffer|string} plaintext Data to be encrypted.
    * @param {buffer|string} key Secret key.
    * @param {buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {string} Base64 encrypted text.
+   * @return {buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
     var cipher, ciphertext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-
-    plaintext = this.str2buf(plaintext);
-    key = this.str2buf(key);
-    iv = this.str2buf(iv);
-
-    cipher = crypto.createCipheriv(algo, key, iv);
-    ciphertext = cipher.update(plaintext.toString("hex"), "hex", "base64");
-    return ciphertext + cipher.final("base64");
+    cipher = crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    ciphertext = cipher.update(this.str2buf(plaintext));
+    return Buffer.concat([ciphertext, cipher.final()]);
   },
 
   /**
    * Symmetric private key decryption using secret (derived) key.
-   * @param {buffer|string} ciphertext Text to be decrypted.
+   * @param {buffer|string} ciphertext Data to be decrypted.
    * @param {buffer|string} key Secret key.
    * @param {buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {string} Hex decryped text.
+   * @return {buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
     var decipher, plaintext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-
-    ciphertext = this.str2buf(ciphertext);
-    key = this.str2buf(key);
-    iv = this.str2buf(iv);
-
-    decipher = crypto.createDecipheriv(algo, key, iv);
-    plaintext = decipher.update(ciphertext.toString("base64"), "base64", "hex");
-    return plaintext + decipher.final("hex");
+    decipher = crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    plaintext = decipher.update(this.str2buf(ciphertext));
+    return Buffer.concat([plaintext, decipher.final()]);
   },
 
   /**
@@ -334,7 +334,7 @@ module.exports = {
     algo = options.cipher || this.constants.cipher;
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = Buffer.from(this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo), "base64").toString("hex");
+    ciphertext = this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo).toString("hex");
 
     keyObject = {
       address: this.privateKeyToAddress(privateKey).slice(2),
@@ -421,29 +421,16 @@ module.exports = {
       } else {
         key = derivedKey.slice(0, 16);
       }
-      return Buffer.from(self.decrypt(ciphertext, key, iv, algo), "hex");
+      return self.decrypt(ciphertext, key, iv, algo);
     }
 
-    iv = keyObjectCrypto.cipherparams.iv;
-    salt = keyObjectCrypto.kdfparams.salt;
-    ciphertext = keyObjectCrypto.ciphertext;
+    iv = this.str2buf(keyObjectCrypto.cipherparams.iv);
+    salt = this.str2buf(keyObjectCrypto.kdfparams.salt);
+    ciphertext = this.str2buf(keyObjectCrypto.ciphertext);
     algo = keyObjectCrypto.cipher;
 
-    iv = this.str2buf(iv);
-    salt = this.str2buf(salt);
-    ciphertext = this.str2buf(ciphertext);
-
-    if (keyObjectCrypto.kdf === "scrypt") {
-      this.constants.scrypt.n = keyObjectCrypto.kdfparams.n;
-      this.constants.scrypt.r = keyObjectCrypto.kdfparams.r;
-      this.constants.scrypt.p = keyObjectCrypto.kdfparams.p;
-      this.constants.scrypt.dklen = keyObjectCrypto.kdfparams.dklen;
-    } else {
-      if (keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
-        throw new Error("PBKDF2 only supported with HMAC-SHA256");
-      }
-      this.constants.pbkdf2.c = keyObjectCrypto.kdfparams.c;
-      this.constants.pbkdf2.dklen = keyObjectCrypto.kdfparams.dklen;
+    if (keyObjectCrypto.kdf === "pbkdf2" && keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
+      throw new Error("PBKDF2 only supported with HMAC-SHA256");
     }
 
     // derive secret key from password
