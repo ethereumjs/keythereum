@@ -12,7 +12,7 @@ var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
 var keccak = require("./lib/keccak");
-var scrypt = require("./lib/scrypt");
+var scrypt = require("scryptsy");
 
 function isFunction(f) {
   return typeof f === "function";
@@ -209,29 +209,26 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (isFunction(scrypt)) {
-        scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
-      }
       if (isFunction(cb)) {
         setTimeout(function () {
-          cb(Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
+          cb(scrypt(
             password,
             salt,
             options.kdfparams.n || self.constants.scrypt.n,
             options.kdfparams.r || self.constants.scrypt.r,
             options.kdfparams.p || self.constants.scrypt.p,
             options.kdfparams.dklen || self.constants.scrypt.dklen
-          )), "hex"));
+          ));
         }, 0);
       } else {
-        return Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
+        return scrypt(
           password,
           salt,
-          options.kdfparams.n || this.constants.scrypt.n,
-          options.kdfparams.r || this.constants.scrypt.r,
-          options.kdfparams.p || this.constants.scrypt.p,
-          options.kdfparams.dklen || this.constants.scrypt.dklen
-        )), "hex");
+          options.kdfparams.n || self.constants.scrypt.n,
+          options.kdfparams.r || self.constants.scrypt.r,
+          options.kdfparams.p || self.constants.scrypt.p,
+          options.kdfparams.dklen || self.constants.scrypt.dklen
+        );
       }
 
     // use default key derivation function (PBKDF2)

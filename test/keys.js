@@ -605,7 +605,7 @@ describe("Key derivation", function () {
       pbkdf2Sync = keythereum.crypto.pbkdf2Sync;
     });
 
-    after(function () {
+    afterEach(function () {
       keythereum.crypto.pbkdf2 = pbkdf2;
       keythereum.crypto.pbkdf2Sync = pbkdf2Sync;
     });
@@ -640,8 +640,10 @@ describe("Key derivation", function () {
     it("using sjcl: " + t.input.kdf, function (done) {
       var derivedKey;
       this.timeout(TIMEOUT);
-      keythereum.crypto.pbkdf2 = undefined;
-      keythereum.crypto.pbkdf2Sync = undefined;
+      if (t.input.kdf !== 'scrypt') {
+        keythereum.crypto.pbkdf2 = undefined;
+        keythereum.crypto.pbkdf2Sync = undefined;
+      }
 
       // synchronous
       derivedKey = keythereum.deriveKey(
