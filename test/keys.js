@@ -1173,6 +1173,180 @@ describe("Recover plaintext private key from key object", function () {
 
   test({
     input: {
+      password: "foobar",
+      keyObject: {
+        address: "7ef5a6135f1fd6a02593eedc869c6d41d934aef8",
+        crypto: {
+          cipher: "aes-128-ctr",
+          ciphertext: "1d0839166e7a15b9c1333fc865d69858b22df26815ccf601b28219b6192974e1",
+          cipherparams: {
+            iv: "8df6caa7ff1b00c4e871f002cb7921ed"
+          },
+          kdf: "scrypt",
+          kdfparams: {
+            dklen: 32,
+            n: 8,
+            p: 16,
+            r: 8,
+            salt: "e5e6ef3f4ea695f496b643ebd3f75c0aa58ef4070e90c80c5d3fb0241bf1595c"
+          },
+          mac: "6d16dfde774845e4585357f24bce530528bc69f4f84e1e22880d34fa45c273e5"
+        },
+        id: "950077c7-71e3-4c44-a4a1-143919141ed4",
+        version: 3
+      }
+    },
+    expected: "976f9f7772781ff6d1c93941129d417c49a209c674056a3cf5e27e225ee55fa8"
+  });
+  test({
+    input: {
+      password: "foobar",
+      keyObject: {
+        address: "f466859ead1932d743d622cb74fc058882e8648a",
+        crypto: {
+          cipher: "aes-128-ctr",
+          ciphertext: "cb664472deacb41a2e995fa7f96fe29ce744471deb8d146a0e43c7898c9ddd4d",
+          cipherparams: {
+            iv: "dfd9ee70812add5f4b8f89d0811c9158"
+          },
+          kdf: "scrypt",
+          kdfparams: {
+            dklen: 32,
+            n: 8,
+            p: 16,
+            r: 8,
+            salt: "0d6769bf016d45c479213990d6a08d938469c4adad8a02ce507b4a4e7b7739f1"
+          },
+          mac: "bac9af994b15a45dd39669fc66f9aa8a3b9dd8c22cb16e4d8d7ea089d0f1a1a9"
+        },
+        id: "472e8b3d-afb6-45b5-8111-72c89895099a",
+        version: 3
+      }
+    },
+    expected: "539f9b4106fb452408e1ee43d177077f057a8fdc1e1fad92c61e68982b4e3c4b"
+  });
+  test({
+    input: {
+      password: "g",
+      keyObject: {
+        address: "cb61d5a9c4896fb9658090b597ef0e7be6f7b67e",
+        Crypto: {
+          cipher: "aes-128-cbc",
+          ciphertext: "6143d3192db8b66eabd693d9c4e414dcfaee52abda451af79ccf474dafb35f1bfc7ea013aa9d2ee35969a1a2e8d752d0",
+          cipherparams: {
+            iv: "35337770fc2117994ecdcad026bccff4"
+          },
+          kdf: "scrypt",
+          kdfparams: {
+            n: 262144,
+            r: 8,
+            p: 1,
+            dklen: 32,
+            salt: "9afcddebca541253a2f4053391c673ff9fe23097cd8555d149d929e4ccf1257f"
+          },
+          mac: "3f3d5af884b17a100b0b3232c0636c230a54dc2ac8d986227219b0dd89197644",
+          version: "1"
+        },
+        id: "e25f7c1f-d318-4f29-b62c-687190d4d299",
+        version: "1"
+      }
+    },
+    expected: "d1b1178d3529626a1a93e073f65028370d14c7eb0936eb42abef05db6f37ad7d"
+  });
+  // cipherText=[149, 23, 205, 91, 219, 230, 144, 118, 249, 191, 80, 87, 36, 140, 108, 5, 1, 65, 233, 112, 239, 163, 108, 229, 54, 146, 213, 213, 154, 57, 132]
+  // "9517cd5bdbe69076f9bf5057248c6c050141e970efa36ce53692d5d59a3984"
+  // derivedKeyFirst16=[84, 242, 184, 28, 212, 93, 112, 185, 156, 63, 71, 38, 197, 134, 197, 205]
+  // "54f2b81cd45d70b99c3f4726c586c5cd"
+  // derivedKeyLast16=[12, 215, 137, 212, 157, 44, 91, 203, 49, 121, 246, 84, 234, 79, 179, 164]
+  // "0cd789d49d2c5bcb3179f654ea4fb3a4"
+  // iv=[224, 196, 17, 48, 163, 35, 173, 193, 68, 111, 200, 47, 114, 75, 202, 47]
+  // "e0c41130a323adc1446fc82f724bca2f"
+  // privateKey=[250, 123, 61, 183, 61, 199, 223, 223, 140, 95, 189, 183, 150, 215, 65, 228, 72, 134, 40, 196, 31, 196, 254, 189, 145, 96, 168, 102, 186, 15, 53]
+  // "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35"
+  // address=0xd1e64e5480bfaf733ba7d48712decb8227797a4e
+  test({
+    input: {
+      password: "foo",
+      keyObject: {
+        address: "d1e64e5480bfaf733ba7d48712decb8227797a4e",
+        crypto: {
+          cipher: "aes-128-ctr",
+          cipherparams: {
+            iv: "e0c41130a323adc1446fc82f724bca2f"
+          },
+          ciphertext: "9517cd5bdbe69076f9bf5057248c6c050141e970efa36ce53692d5d59a3984",
+          kdf: "scrypt",
+          kdfparams: {
+            dklen: 32,
+            n: 2,
+            r: 8,
+            p: 1,
+            salt: "711f816911c92d649fb4c84b047915679933555030b3552c1212609b38208c63"
+          },
+          mac: "d5e116151c6aa71470e67a7d42c9620c75c4d23229847dcc127794f0732b0db5"
+        },
+        id: "fecfc4ce-e956-48fd-953b-30f8b52ed66c",
+        version: 3
+      }
+    },
+    expected: "fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35"
+  });
+  test({
+    input: {
+      password: "foo",
+      keyObject: {
+        address: "31e9d1e6d844bd3a536800ef8d8be6a9975db509",
+        crypto: {
+          cipher: "aes-128-ctr",
+          cipherparams: {
+            iv: "3ca92af36ad7c2cd92454c59cea5ef00"
+          },
+          ciphertext: "108b7d34f3442fc26ab1ab90ca91476ba6bfa8c00975a49ef9051dc675aa",
+          kdf: "scrypt",
+          kdfparams: {
+            dklen: 32,
+            n: 2,
+            r: 8,
+            p: 1,
+            salt: "d0769e608fb86cda848065642a9c6fa046845c928175662b8e356c77f914cd3b"
+          },
+          mac: "75d0e6759f7b3cefa319c3be41680ab6beea7d8328653474bd06706d4cc67420"
+        },
+        id: "a37e1559-5955-450d-8075-7b8931b392b2",
+        version: 3
+      }
+    },
+    expected: "81c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018",
+  });
+  test({
+    input: {
+      password: "foobar",
+      keyObject: {
+        address: "289d485d9771714cce91d3393d764e1311907acc",
+        crypto: {
+          cipher: "aes-128-ctr",
+          ciphertext: "faf32ca89d286b107f5e6d842802e05263c49b78d46eac74e6109e9a963378ab",
+          cipherparams: {
+            iv: "558833eec4a665a8c55608d7d503407d"
+          },
+          kdf: "scrypt",
+          kdfparams: {
+            dklen: 32,
+            n: 8,
+            p: 16,
+            r: 8,
+            salt: "d571fff447ffb24314f9513f5160246f09997b857ac71348b73e785aab40dc04"
+          },
+          mac: "21edb85ff7d0dab1767b9bf498f2c3cb7be7609490756bd32300bb213b59effe"
+        },
+        id: "3279afcf-55ba-43ff-8997-02dcc46a6525",
+        version: 3
+      }
+    },
+    expected: "14a447d8d4c69714f8750e1688feb98857925e1fec6dee7c75f0079d10519d25"
+  });
+  test({
+    input: {
       password: "testpassword",
       keyObject: {
         address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
