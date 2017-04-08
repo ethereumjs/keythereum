@@ -426,14 +426,10 @@ module.exports = {
       return Buffer.from(self.decrypt(ciphertext, key, iv, algo), "hex");
     }
 
-    iv = keyObjectCrypto.cipherparams.iv;
-    salt = keyObjectCrypto.kdfparams.salt;
-    ciphertext = keyObjectCrypto.ciphertext;
+    iv = this.str2buf(keyObjectCrypto.cipherparams.iv);
+    salt = this.str2buf(keyObjectCrypto.kdfparams.salt);
+    ciphertext = this.str2buf(keyObjectCrypto.ciphertext);
     algo = keyObjectCrypto.cipher;
-
-    iv = this.str2buf(iv);
-    salt = this.str2buf(salt);
-    ciphertext = this.str2buf(ciphertext);
 
     if (keyObjectCrypto.kdf === "pbkdf2" && keyObjectCrypto.kdfparams.prf !== "hmac-sha256") {
       throw new Error("PBKDF2 only supported with HMAC-SHA256");
