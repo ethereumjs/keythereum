@@ -24,6 +24,8 @@ function keccak256(buffer) {
 
 module.exports = {
 
+  version: "0.5.2",
+
   browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
   crypto: crypto,
@@ -44,7 +46,7 @@ module.exports = {
 
     // Key derivation function parameters
     pbkdf2: {
-      c: 65536,
+      c: 262144,
       dklen: 32,
       hash: "sha256",
       prf: "hmac-sha256"
@@ -52,7 +54,7 @@ module.exports = {
     scrypt: {
       memory: 280000000,
       dklen: 32,
-      n: 65536,
+      n: 262144,
       r: 1,
       p: 8
     }
@@ -94,19 +96,6 @@ module.exports = {
     if (!enc && this.isHex(str)) enc = "hex";
     if (!enc && this.isBase64(str)) enc = "base64";
     return Buffer.from(str, enc);
-  },
-
-  /**
-   * Convert a hex-encoded string to UTF-16.
-   * @param {string|buffer} input Hex-encoded string.
-   * @return {string} UTF16-LE string.
-   */
-  hex2utf16le: function (input) {
-    input = this.str2buf(input, "hex");
-    if (input.length % 2 !== 0) {
-      throw new Error("Can't convert input to UTF-16: invalid length");
-    }
-    return input.toString("utf16le");
   },
 
   /**

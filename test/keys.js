@@ -19,10 +19,6 @@ var privateKey = crypto.randomBytes(32);
 // suppress logging
 keythereum.constants.quiet = !DEBUG;
 
-// change hashing rounds to match geth's default
-keythereum.constants.pbkdf2.c = 262144;
-keythereum.constants.scrypt.n = 262144;
-
 describe("Check if valid hex-encoded string", function () {
   var test = function (t) {
     it(t.description, function () {
@@ -233,58 +229,6 @@ describe("Convert a string to a Buffer", function () {
     },
     assertions: function (output) {
       assert.strictEqual(output.toString("utf8"), "alivebeef");
-    }
-  });
-});
-
-describe("Convert a hex-encoded string or buffer to a UTF-16 string", function () {
-  var test = function (t) {
-    it("[string] " + t.description, function () {
-      var output;
-      try {
-        output = keythereum.hex2utf16le(t.input);
-      } catch (exc) {
-        output = exc;
-      }
-      t.assertions(output);
-    });
-    it("[buffer] " + t.description, function () {
-      var output;
-      try {
-        output = keythereum.hex2utf16le(Buffer.from(t.input, "hex"));
-      } catch (exc) {
-        output = exc;
-      }
-      t.assertions(output);
-    });
-  };
-  test({
-    description: "deadbeef -> 귞",
-    input: "deadbeef",
-    assertions: function (output) {
-      assert.strictEqual(output, "귞");
-    }
-  });
-  test({
-    description: "0326 -> ☃",
-    input: "0326",
-    assertions: function (output) {
-      assert.strictEqual(output, "☃");
-    }
-  });
-  test({
-    description: "03260326 -> ☃☃",
-    input: "03260326",
-    assertions: function (output) {
-      assert.strictEqual(output, "☃☃");
-    }
-  });
-  test({
-    description: "032603 should throw an invalid length error",
-    input: "032603",
-    assertions: function (output) {
-      assert.instanceOf(output, Error);
-      assert.strictEqual(output.message, "Can't convert input to UTF-16: invalid length");
     }
   });
 });
