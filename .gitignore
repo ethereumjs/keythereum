@@ -12,3 +12,4 @@ test/fixtures/extra
 test/fixtures/state
 test/fixtures/nodes
 test/fixtures/geth
+test/browser/bundle.js

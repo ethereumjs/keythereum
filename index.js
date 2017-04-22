@@ -1,5 +1,5 @@
 /**
- * keythereum: create/import/export ethereum keys
+ * Create, import, and export ethereum keys.
  * @author Jack Peterson (jack@tinybike.net)
  */
 

@@ -10,8 +10,10 @@
   "scripts": {
     "test": "mocha test/keys.js",
     "geth": "mocha -R progress test/keys.js && mocha -R progress test/geth.js",
-    "lint": "eslint index.js && eslint gulpfile.js && eslint test",
-    "coverage": "istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js"
+    "lint": "eslint index.js && eslint gulpfile.js && eslint test/*.js",
+    "coverage": "istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js",
+    "build": "browserify ./exports.js > ./dist/keythereum.js && uglifyjs ./dist/keythereum.js > ./dist/keythereum.min.js",
+    "build:tests": "browserify test/keys.js > test/browser/bundle.js"
   },
   "repository": {
     "type": "git",
@@ -37,10 +39,8 @@
     "browserify": "^13.1.1",
     "chai": "^3.2.0",
     "coveralls": "^2.11.3",
-    "del": "^1.2.0",
     "eslint": "^3.17.1",
     "geth": "^0.2.2",
-    "gulp": "^3.9.0",
     "istanbul": "^0.3.17",
     "mocha": "^2.2.5",
     "uglify-js": "^2.4.24",

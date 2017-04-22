@@ -788,7 +788,11 @@ describe("Generate keystore filename", function () {
 
 describe("Export to file", function () {
 
-  var keyObj = {
+  var keyObj;
+
+  if (keythereum.browser) return;
+
+  keyObj = {
     address: "008aeeda4d805471df9b2a5b0f38a0c3bcba786b",
     crypto: {
       cipher: "aes-128-ctr",
@@ -855,7 +859,9 @@ describe("Export to file", function () {
 
 describe("Import from keystore file", function () {
 
-  var test = function (t) {
+  if (keythereum.browser) return;
+
+  function test(t) {
     var label = "[" + t.expected.crypto.kdf + "] import " + t.input.address + " from file";
     it(label, function (done) {
       var keyObject;
@@ -869,7 +875,7 @@ describe("Import from keystore file", function () {
         done();
       });
     });
-  };
+  }
 
   describe("Version 3", function () {
     test({
