@@ -24,7 +24,7 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "0.5.2",
+  version: "1.0.0",
 
   browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
@@ -43,6 +43,9 @@ module.exports = {
 
     // ECDSA private key size in bytes
     keyBytes: 32,
+
+    // secp256k1 subgroup order (private keys at or above this value are invalid)
+    keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex"),
 
     // Key derivation function parameters
     pbkdf2: {
@@ -275,37 +278,55 @@ module.exports = {
   },
 
   /**
+   * Check that the private key is within bounds.
+   * @param {buffer} privateKey Private key.
+   * @param {buffer} params.keyValueUpperBound Exclusive upper bound for private key.
+   * @return {boolean} True if the private key is in bounds, False otherwise.
+   */
+  checkPrivateKeyBounds: function (privateKey, keyValueUpperBound) {
+    if (!Buffer.isBuffer(privateKey) || !Buffer.isBuffer(keyValueUpperBound)) return false;
+    if (parseInt(privateKey.toString("hex"), 16) <= 0) return false;
+    if (privateKey >= keyValueUpperBound) return false;
+    return true;
+  },
+
+  /**
    * Generate random numbers for private key, initialization vector,
    * and salt (for key derivation).
    * @param {Object=} params Encryption options (defaults: constants).
    * @param {string=} params.keyBytes Private key size in bytes.
    * @param {string=} params.ivBytes Initialization vector size in bytes.
+   * @param {buffer=} params.keyValueUpperBound Exclusive upper bound for private key.
    * @param {function=} cb Callback function (optional).
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
-    var keyBytes, ivBytes;
+    var keyBytes, ivBytes, self = this;
     params = params || {};
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
-    function bytes2object(bytes) {
+    function checkBoundsAndCreateObject(randomBytes) {
+      var privateKey = randomBytes.slice(0, keyBytes);
+      if (self.checkPrivateKeyBounds(privateKey, params.keyValueUpperBound || self.constants.keyValueUpperBound) === false) {
+        return self.create(params, cb);
+      }
       return {
-        privateKey: bytes.slice(0, keyBytes),
-        iv: bytes.slice(keyBytes, keyBytes + ivBytes),
-        salt: bytes.slice(keyBytes + ivBytes)
+        privateKey: privateKey,
+        iv: randomBytes.slice(keyBytes, keyBytes + ivBytes),
+        salt: randomBytes.slice(keyBytes + ivBytes)
       };
     }
 
     // synchronous key generation if callback not provided
     if (!isFunction(cb)) {
-      return bytes2object(crypto.randomBytes(keyBytes + ivBytes + keyBytes));
+      return checkBoundsAndCreateObject(crypto.randomBytes(keyBytes + ivBytes + keyBytes));
     }
 
     // asynchronous key generation
-    crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, bytes) {
+    crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
       if (err) return cb(err);
-      cb(bytes2object(bytes));
+      cb(checkBoundsAndCreateObject(randomBytes));
     });
   },
 
