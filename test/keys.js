@@ -332,124 +332,6 @@ describe("Derive Ethereum address from private key", function () {
   });
 });
 
-describe("Check private key bounds", function () {
-  var test = function (t) {
-    it(t.description, function () {
-      t.assertions(keythereum.checkPrivateKeyBounds(t.params.privateKey, t.params.keyValueUpperBound));
-    });
-  };
-  test({
-    description: "private key 1",
-    params: {
-      privateKey: Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isTrue(isInBounds);
-    }
-  });
-  test({
-    description: "private key equal to upper bound - 1",
-    params: {
-      privateKey: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isTrue(isInBounds);
-    }
-  });
-  test({
-    description: "private key 0",
-    params: {
-      privateKey: Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key equal to upper bound",
-    params: {
-      privateKey: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key equal to upper bound + 1",
-    params: {
-      privateKey: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key equal to field characteristic - 1",
-    params: {
-      privateKey: Buffer.from("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key equal to field characteristic",
-    params: {
-      privateKey: Buffer.from("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", "hex"),
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key not a buffer",
-    params: {
-      privateKey: "0000000000000000000000000000000000000000000000000000000000000001",
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "private key not supplied",
-    params: {
-      privateKey: undefined,
-      keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex")
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "key value upper bound not supplied",
-    params: {
-      privateKey: Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex"),
-      keyValueUpperBound: undefined
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-  test({
-    description: "key value upper bound not a buffer",
-    params: {
-      privateKey: Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex"),
-      keyValueUpperBound: "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
-    },
-    assertions: function (isInBounds) {
-      assert.isFalse(isInBounds);
-    }
-  });
-});
-
 describe("Create random private key, salt and initialization vector", function () {
 
   var test = function (dk, params) {
@@ -489,11 +371,7 @@ describe("Create random private key, salt and initialization vector", function (
     };
 
     runtest(keythereum.constants);
-    runtest({ keyBytes: 16, ivBytes: 16 });
     runtest({ keyBytes: 32, ivBytes: 16 });
-    runtest({ keyBytes: 64, ivBytes: 16 });
-    runtest({ keyBytes: 128, ivBytes: 16 });
-    runtest({ keyBytes: 256, ivBytes: 16 });
   };
 
   var i;

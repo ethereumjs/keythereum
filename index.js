@@ -278,19 +278,6 @@ module.exports = {
   },
 
   /**
-   * Check that the private key is within bounds.
-   * @param {buffer} privateKey Private key.
-   * @param {buffer} params.keyValueUpperBound Exclusive upper bound for private key.
-   * @return {boolean} True if the private key is in bounds, False otherwise.
-   */
-  checkPrivateKeyBounds: function (privateKey, keyValueUpperBound) {
-    if (!Buffer.isBuffer(privateKey) || !Buffer.isBuffer(keyValueUpperBound)) return false;
-    if (parseInt(privateKey.toString("hex"), 16) <= 0) return false;
-    if (privateKey >= keyValueUpperBound) return false;
-    return true;
-  },
-
-  /**
    * Generate random numbers for private key, initialization vector,
    * and salt (for key derivation).
    * @param {Object=} params Encryption options (defaults: constants).
@@ -308,9 +295,7 @@ module.exports = {
 
     function checkBoundsAndCreateObject(randomBytes) {
       var privateKey = randomBytes.slice(0, keyBytes);
-      if (self.checkPrivateKeyBounds(privateKey, params.keyValueUpperBound || self.constants.keyValueUpperBound) === false) {
-        return self.create(params, cb);
-      }
+      if (!secp256k1.privateKeyVerify(privateKey)) return self.create(params, cb);
       return {
         privateKey: privateKey,
         iv: randomBytes.slice(keyBytes, keyBytes + ivBytes),
