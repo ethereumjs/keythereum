@@ -24,7 +24,7 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "1.0.0",
+  version: "1.0.2",
 
   browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
@@ -43,9 +43,6 @@ module.exports = {
 
     // ECDSA private key size in bytes
     keyBytes: 32,
-
-    // secp256k1 subgroup order (private keys at or above this value are invalid)
-    keyValueUpperBound: Buffer.from("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", "hex"),
 
     // Key derivation function parameters
     pbkdf2: {
@@ -283,7 +280,6 @@ module.exports = {
    * @param {Object=} params Encryption options (defaults: constants).
    * @param {string=} params.keyBytes Private key size in bytes.
    * @param {string=} params.ivBytes Initialization vector size in bytes.
-   * @param {buffer=} params.keyValueUpperBound Exclusive upper bound for private key.
    * @param {function=} cb Callback function (optional).
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
