@@ -505,6 +505,7 @@ module.exports = {
   importFromFile: function (address, datadir, cb) {
     var keystore, filepath;
     address = address.replace("0x", "");
+    address = address.toLowerCase();
 
     function findKeyfile(keystore, address, files) {
       var i, len, filepath = null;
