@@ -24,7 +24,7 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "1.0.2",
+  version: "1.0.3",
 
   browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
 
