@@ -32,9 +32,6 @@ module.exports = {
 
   constants: {
 
-    // Suppress logging
-    quiet: false,
-
     // Symmetric cipher for private key encryption
     cipher: "aes-128-ctr",
 
@@ -464,36 +461,21 @@ module.exports = {
    * @return {string} JSON filename (Node.js) or JSON string (browser).
    */
   exportToFile: function (keyObject, keystore, cb) {
-    var self = this;
     var outfile, outpath, json;
-
-    function instructions(outpath) {
-      if (!self.constants.quiet) {
-        console.log(
-          "Saved to file:\n" + outpath + "\n"+
-          "To use with geth, copy this file to your Ethereum "+
-          "keystore folder (usually ~/.ethereum/keystore)."
-        );
-      }
-    }
-
     keystore = keystore || "keystore";
     outfile = this.generateKeystoreFilename(keyObject.address);
     outpath = path.join(keystore, outfile);
     json = JSON.stringify(keyObject);
-
     if (this.browser) {
       if (!isFunction(cb)) return json;
       return cb(json);
     }
     if (!isFunction(cb)) {
       fs.writeFileSync(outpath, json);
-      instructions(outpath);
       return outpath;
     }
     fs.writeFile(outpath, json, function (ex) {
       if (ex) throw ex;
-      instructions(outpath);
       cb(outpath);
     });
   },
