@@ -8,16 +8,12 @@ var crypto = require("crypto");
 var assert = require("chai").assert;
 var keythereum = require("../");
 var checkKeyObj = require("./checkKeyObj");
-var DEBUG = false;
 
 // timeout for asynchronous unit tests
 var TIMEOUT = 120000;
 
 // create private key
 var privateKey = crypto.randomBytes(32);
-
-// suppress logging
-keythereum.constants.quiet = !DEBUG;
 
 describe("Check if valid hex-encoded string", function () {
   var test = function (t) {
