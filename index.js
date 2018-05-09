@@ -5,14 +5,12 @@
 
 "use strict";
 
-var path = require("path");
-var fs = require("fs");
-var crypto = require("crypto");
+var isBrowser = typeof process === "undefined" || !process.nextTick || Boolean(process.browser);
+
 var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
 var createKeccakHash = require("keccak/js");
-var scrypt = require("./lib/scrypt");
 
 function isFunction(f) {
   return typeof f === "function";
@@ -24,11 +22,13 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "1.0.3",
+  version: "1.0.4",
 
-  browser: typeof process === "undefined" || !process.nextTick || Boolean(process.browser),
+  browser: isBrowser,
 
-  crypto: crypto,
+  scrypt: null,
+
+  crypto: isBrowser ? require("crypto-browserify") : require("crypto"),
 
   constants: {
 
@@ -101,7 +101,7 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    return crypto.getCiphers().some(function (name) { return name === cipher; });
+    return this.crypto.getCiphers().some(function (name) { return name === cipher; });
   },
 
   /**
@@ -116,7 +116,7 @@ module.exports = {
     var cipher, ciphertext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    cipher = crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    cipher = this.crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
     ciphertext = cipher.update(this.str2buf(plaintext));
     return Buffer.concat([ciphertext, cipher.final()]);
   },
@@ -133,7 +133,7 @@ module.exports = {
     var decipher, plaintext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    decipher = crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    decipher = this.crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
     plaintext = decipher.update(this.str2buf(ciphertext));
     return Buffer.concat([plaintext, decipher.final()]);
   },
@@ -175,6 +175,49 @@ module.exports = {
   },
 
   /**
+   * Used internally.
+   */
+  deriveKeyUsingScryptInNode: function (password, salt, options, cb) {
+    if (!isFunction(cb)) return this.deriveKeyUsingScryptInBrowser(password, salt, options);
+    require("scrypt").hash(password, {
+      N: options.kdfparams.n || this.constants.scrypt.n,
+      r: options.kdfparams.r || this.constants.scrypt.r,
+      p: options.kdfparams.p || this.constants.scrypt.p
+    }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+  },
+
+  /**
+   * Used internally.
+   */
+  deriveKeyUsingScryptInBrowser: function (password, salt, options, cb) {
+    var self = this;
+    if (this.scrypt === null) this.scrypt = require("./lib/scrypt");
+    if (isFunction(this.scrypt)) {
+      this.scrypt = this.scrypt(options.kdfparams.memory || this.constants.scrypt.memory);
+    }
+    if (!isFunction(cb)) {
+      return Buffer.from(this.scrypt.to_hex(this.scrypt.crypto_scrypt(
+        password,
+        salt,
+        options.kdfparams.n || this.constants.scrypt.n,
+        options.kdfparams.r || this.constants.scrypt.r,
+        options.kdfparams.p || this.constants.scrypt.p,
+        options.kdfparams.dklen || this.constants.scrypt.dklen
+      )), "hex");
+    }
+    setTimeout(function () {
+      cb(Buffer.from(self.scrypt.to_hex(self.scrypt.crypto_scrypt(
+        password,
+        salt,
+        options.kdfparams.n || self.constants.scrypt.n,
+        options.kdfparams.r || self.constants.scrypt.r,
+        options.kdfparams.p || self.constants.scrypt.p,
+        options.kdfparams.dklen || self.constants.scrypt.dklen
+      )), "hex"));
+    }, 0);
+  },
+
+  /**
    * Derive secret key from password with key dervation function.
    * @param {string|buffer} password User-supplied password.
    * @param {string|buffer} salt Randomly generated salt.
@@ -190,7 +233,6 @@ module.exports = {
     if (typeof password === "undefined" || password === null || !salt) {
       throw new Error("Must provide password and salt to derive a key");
     }
-
     options = options || {};
     options.kdfparams = options.kdfparams || {};
 
@@ -200,74 +242,51 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (isFunction(scrypt)) {
-        scrypt = scrypt(options.kdfparams.memory || self.constants.scrypt.memory);
-      }
-      if (isFunction(cb)) {
-        setTimeout(function () {
-          cb(Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
-            password,
-            salt,
-            options.kdfparams.n || self.constants.scrypt.n,
-            options.kdfparams.r || self.constants.scrypt.r,
-            options.kdfparams.p || self.constants.scrypt.p,
-            options.kdfparams.dklen || self.constants.scrypt.dklen
-          )), "hex"));
-        }, 0);
-      } else {
-        return Buffer.from(scrypt.to_hex(scrypt.crypto_scrypt(
-          password,
-          salt,
-          options.kdfparams.n || this.constants.scrypt.n,
-          options.kdfparams.r || this.constants.scrypt.r,
-          options.kdfparams.p || this.constants.scrypt.p,
-          options.kdfparams.dklen || this.constants.scrypt.dklen
-        )), "hex");
-      }
+      if (!this.browser) return this.deriveKeyUsingScryptInNode(password, salt, options, cb);
+      return this.deriveKeyUsingScryptInBrowser(password, salt, options, cb);
+    }
 
     // use default key derivation function (PBKDF2)
+    prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
+    if (prf === "hmac-sha256") prf = "sha256";
+    if (!isFunction(cb)) {
+      if (!this.crypto.pbkdf2Sync) {
+        return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+          password.toString("utf8"),
+          sjcl.codec.hex.toBits(salt.toString("hex")),
+          options.kdfparams.c || self.constants.pbkdf2.c,
+          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+        )), "hex");
+      }
+      return this.crypto.pbkdf2Sync(
+        password,
+        salt,
+        options.kdfparams.c || this.constants.pbkdf2.c,
+        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+        prf
+      );
+    }
+    if (!this.crypto.pbkdf2) {
+      setTimeout(function () {
+        cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+          password.toString("utf8"),
+          sjcl.codec.hex.toBits(salt.toString("hex")),
+          options.kdfparams.c || self.constants.pbkdf2.c,
+          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+        )), "hex"));
+      }, 0);
     } else {
-      prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
-      if (prf === "hmac-sha256") prf = "sha256";
-      if (!isFunction(cb)) {
-        if (!this.crypto.pbkdf2Sync) {
-          return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-            password.toString("utf8"),
-            sjcl.codec.hex.toBits(salt.toString("hex")),
-            options.kdfparams.c || self.constants.pbkdf2.c,
-            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-          )), "hex");
+      this.crypto.pbkdf2(
+        password,
+        salt,
+        options.kdfparams.c || this.constants.pbkdf2.c,
+        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+        prf,
+        function (ex, derivedKey) {
+          if (ex) return cb(ex);
+          cb(derivedKey);
         }
-        return crypto.pbkdf2Sync(
-          password,
-          salt,
-          options.kdfparams.c || this.constants.pbkdf2.c,
-          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-          prf
-        );
-      }
-      if (!this.crypto.pbkdf2) {
-        setTimeout(function () {
-          cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-            password.toString("utf8"),
-            sjcl.codec.hex.toBits(salt.toString("hex")),
-            options.kdfparams.c || self.constants.pbkdf2.c,
-            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-          )), "hex"));
-        }, 0);
-      } else {
-        crypto.pbkdf2(
-          password,
-          salt,
-          options.kdfparams.c || this.constants.pbkdf2.c,
-          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-          prf,
-          function (ex, derivedKey) {
-            if (ex) return cb(ex);
-            cb(derivedKey);
-          }
-        );
-      }
+      );
     }
   },
 
@@ -298,11 +317,11 @@ module.exports = {
 
     // synchronous key generation if callback not provided
     if (!isFunction(cb)) {
-      return checkBoundsAndCreateObject(crypto.randomBytes(keyBytes + ivBytes + keyBytes));
+      return checkBoundsAndCreateObject(this.crypto.randomBytes(keyBytes + ivBytes + keyBytes));
     }
 
     // asynchronous key generation
-    crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
+    this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
       if (err) return cb(err);
       cb(checkBoundsAndCreateObject(randomBytes));
     });
@@ -461,21 +480,22 @@ module.exports = {
    * @return {string} JSON filename (Node.js) or JSON string (browser).
    */
   exportToFile: function (keyObject, keystore, cb) {
-    var outfile, outpath, json;
+    var outfile, outpath, json, fs;
     keystore = keystore || "keystore";
     outfile = this.generateKeystoreFilename(keyObject.address);
-    outpath = path.join(keystore, outfile);
     json = JSON.stringify(keyObject);
     if (this.browser) {
       if (!isFunction(cb)) return json;
       return cb(json);
     }
+    outpath = require("path").join(keystore, outfile);
+    fs = require("fs");
     if (!isFunction(cb)) {
       fs.writeFileSync(outpath, json);
       return outpath;
     }
-    fs.writeFile(outpath, json, function (ex) {
-      if (ex) throw ex;
+    fs.writeFile(outpath, json, function (err) {
+      if (err) return cb(err);
       cb(outpath);
     });
   },
@@ -489,7 +509,10 @@ module.exports = {
    * @return {Object} Keystore data file's contents.
    */
   importFromFile: function (address, datadir, cb) {
-    var keystore, filepath;
+    var keystore, filepath, path, fs;
+    if (this.browser) throw new Error("method only available in Node.js");
+    path = require("path");
+    fs = require("fs");
     address = address.replace("0x", "");
     address = address.toLowerCase();
 
@@ -507,7 +530,6 @@ module.exports = {
       return filepath;
     }
 
-    if (this.browser) throw new Error("method only available in Node.js");
     datadir = datadir || path.join(process.env.HOME, ".ethereum");
     keystore = path.join(datadir, "keystore");
     if (!isFunction(cb)) {
