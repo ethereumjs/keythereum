@@ -544,7 +544,7 @@ module.exports = {
       if (ex) return cb(ex);
       filepath = findKeyfile(keystore, address, files);
       if (!filepath) {
-        return new Error("could not find key file for address " + address);
+        throw new Error("could not find key file for address " + address);
       }
       return cb(JSON.parse(fs.readFileSync(filepath)));
     });
