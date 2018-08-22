@@ -552,7 +552,7 @@ module.exports = {
       if (ex) return cb(ex);
       filepath = findKeyfile(keystore, address, files);
       if (!filepath) {
-        return new Error("could not find key file for address " + address);
+        throw new Error("could not find key file for address " + address);
       }
       return cb(JSON.parse(fs.readFileSync(filepath)));
     });
@@ -26902,7 +26902,7 @@ module.exports={
   "_args": [
     [
       "elliptic@6.4.0",
-      "/home/jack/src/keythereum"
+      "/Users/leyboan1/dev/cry/keythereum"
     ]
   ],
   "_from": "elliptic@6.4.0",
@@ -26928,7 +26928,7 @@ module.exports={
   ],
   "_resolved": "https://registry.npmjs.org/elliptic/-/elliptic-6.4.0.tgz",
   "_spec": "6.4.0",
-  "_where": "/home/jack/src/keythereum",
+  "_where": "/Users/leyboan1/dev/cry/keythereum",
   "author": {
     "name": "Fedor Indutny",
     "email": "fedor@indutny.com"
