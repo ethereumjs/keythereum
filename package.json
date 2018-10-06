@@ -28,7 +28,7 @@
   "dependencies": {
     "crypto-browserify": "3.12.0",
     "keccak": "1.4.0",
-    "scrypt": "6.0.3",
+    "scrypt-async": "^2.0.1",
     "secp256k1": "3.5.0",
     "sjcl": "1.0.6",
     "uuid": "3.0.0"
