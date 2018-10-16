@@ -30,7 +30,7 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "1.0.4",
+  version: "1.0.5",
 
   browser: isBrowser,
 
@@ -552,7 +552,7 @@ module.exports = {
       if (ex) return cb(ex);
       filepath = findKeyfile(keystore, address, files);
       if (!filepath) {
-        return new Error("could not find key file for address " + address);
+        return cb(new Error("could not find key file for address " + address));
       }
       return cb(JSON.parse(fs.readFileSync(filepath)));
     });
