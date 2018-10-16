@@ -3,6 +3,7 @@ node_modules
 coverage
 overflow
 data
+scripts
 test/fixtures/nodekey
 test/fixtures/.password
 test/fixtures/chaindata
