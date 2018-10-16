@@ -1,6 +1,6 @@
 {
   "name": "keythereum",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Create, import and export Ethereum keys",
   "main": "index.js",
   "directories": {
@@ -36,11 +36,11 @@
   "devDependencies": {
     "babel-plugin-transform-es3-member-expression-literals": "6.22.0",
     "babel-plugin-transform-es3-property-literals": "6.22.0",
-    "babel-preset-env": "1.6.0",
-    "babel-preset-stage-0": "6.16.0",
-    "browserify": "13.1.1",
+    "babel-preset-env": "1.7.0",
+    "babel-preset-stage-0": "6.24.1",
+    "browserify": "16.2.2",
     "chai": "4.1.2",
-    "coveralls": "3.0.1",
+    "coveralls": "3.0.2",
     "eslint": "4.19.1",
     "geth": "0.2.2",
     "istanbul": "0.4.5",
