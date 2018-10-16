@@ -85,24 +85,12 @@ module.exports = {
           t.expected.crypto.kdfparams.n
         );
         assert.strictEqual(
-          keyObjectCrypto.kdfparams.n,
-          keythereum.constants.scrypt.n
-        );
-        assert.strictEqual(
           keyObjectCrypto.kdfparams.r,
           t.expected.crypto.kdfparams.r
         );
         assert.strictEqual(
-          keyObjectCrypto.kdfparams.r,
-          keythereum.constants.scrypt.r
-        );
-        assert.strictEqual(
           keyObjectCrypto.kdfparams.p,
           t.expected.crypto.kdfparams.p
-        );
-        assert.strictEqual(
-          keyObjectCrypto.kdfparams.p,
-          keythereum.constants.scrypt.p
         );
       } else {
         assert.strictEqual(

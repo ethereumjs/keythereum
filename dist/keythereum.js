@@ -60,8 +60,8 @@ module.exports = {
       memory: 280000000,
       dklen: 32,
       n: 262144,
-      r: 1,
-      p: 8
+      r: 8,
+      p: 1
     }
   },
 
