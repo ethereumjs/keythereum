@@ -22,7 +22,7 @@ function keccak256(buffer) {
 
 module.exports = {
 
-  version: "1.0.5",
+  version: "1.1.0",
 
   browser: isBrowser,
 
