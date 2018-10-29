@@ -179,11 +179,20 @@ module.exports = {
    */
   deriveKeyUsingScryptInNode: function (password, salt, options, cb) {
     if (!isFunction(cb)) return this.deriveKeyUsingScryptInBrowser(password, salt, options);
-    require("scrypt").hash(password, {
+    // require("scrypt").hash(password, {
+    //   N: options.kdfparams.n || this.constants.scrypt.n,
+    //   r: options.kdfparams.r || this.constants.scrypt.r,
+    //   p: options.kdfparams.p || this.constants.scrypt.p
+    // }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+    require("scrypt-async")(password, salt, {
       N: options.kdfparams.n || this.constants.scrypt.n,
       r: options.kdfparams.r || this.constants.scrypt.r,
-      p: options.kdfparams.p || this.constants.scrypt.p
-    }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+      p: options.kdfparams.p || this.constants.scrypt.p,
+      dkLen: options.kdfparams.dklen || this.constants.scrypt.dklen,
+      encoding: "hex"
+    }, function (derivedKey) {
+      cb(Buffer.from(derivedKey, "hex"));
+    });
   },
 
   /**
