@@ -11,9 +11,10 @@
     "test": "mocha --require @babel/register test/keys.js",
     "geth": "mocha --require @babel/register -R progress test/keys.js && mocha --require @babel/register -R progress test/geth.js",
     "lint": "eslint index.js && eslint gulpfile.js && eslint test/*.js",
-    "coverage": "istanbul cover -x **/lib/** mocha --require @babel/register test/keys.js",
+    "coverage": "nyc --reporter=html --require @babel/register -x **/lib/** mocha test/keys.js",
     "build:tests": "rimraf test/browser/libs/* && rimraf test/browser/*.{js,wasm} && webpack --config webpack.config.test.js && cpy node_modules/mocha/mocha.css test/browser/libs/ && cpy node_modules/mocha/mocha.js test/browser/libs/ && cpy node_modules/chai/chai.js test/browser/libs/",
-    "build": "rimraf dist && webpack"
+    "build": "rimraf dist && webpack",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls"
   },
   "repository": {
     "type": "git",
@@ -43,8 +44,8 @@
     "cpy-cli": "^2.0.0",
     "eslint": "4.19.1",
     "geth": "0.2.2",
-    "istanbul": "0.4.5",
     "mocha": "5.1.1",
+    "nyc": "^13.1.0",
     "rimraf": "^2.6.2",
     "scrypt-wasm": "^0.1.1",
     "text-encoding": "^0.7.0",

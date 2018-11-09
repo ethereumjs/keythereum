@@ -1,6 +1,7 @@
 node_modules
 *.log
 coverage
+.nyc_output
 overflow
 data
 scripts
