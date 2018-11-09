@@ -2,14 +2,18 @@
 <html>
   <head>
     <title>keythereum tests</title>
-    <link rel="stylesheet" href="../../node_modules/mocha/mocha.css">
+    <link rel="stylesheet" href="libs/mocha.css" />
   </head>
   <body>
     <div id="mocha"></div>
-    <script src="../../node_modules/mocha/mocha.js"></script>
-    <script src="../../node_modules/chai/chai.js"></script>
-    <script>mocha.setup("bdd")</script>
+    <script src="libs/mocha.js"></script>
+    <script src="libs/chai.js"></script>
+    <script>
+      mocha.setup("bdd");
+    </script>
     <script src="./bundle.js"></script>
-    <script>mocha.run();</script>
+    <script>
+      mocha.run();
+    </script>
   </body>
 </html>

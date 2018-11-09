@@ -1,19 +1,19 @@
 {
   "name": "keythereum",
-  "version": "1.1.0",
-  "description": "Create, import and export Ethereum keys",
+  "version": "1.2.0",
+  "description": "Create, import and export Ethereum keys with wasm",
   "main": "index.js",
   "directories": {
     "test": "test",
     "lib": "lib"
   },
   "scripts": {
-    "test": "mocha test/keys.js",
-    "geth": "mocha -R progress test/keys.js && mocha -R progress test/geth.js",
+    "test": "mocha --require @babel/register test/keys.js",
+    "geth": "mocha --require @babel/register -R progress test/keys.js && mocha --require @babel/register -R progress test/geth.js",
     "lint": "eslint index.js && eslint gulpfile.js && eslint test/*.js",
-    "coverage": "istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js",
-    "build": "browserify ./exports.js > ./dist/keythereum.js && uglifyjs ./dist/keythereum.js > ./dist/keythereum.min.js",
-    "build:tests": "browserify test/keys.js > test/browser/bundle.js"
+    "coverage": "istanbul cover -x **/lib/** mocha --require @babel/register test/keys.js",
+    "build:tests": "rimraf test/browser/libs/* && rimraf test/browser/*.{js,wasm} && webpack --config webpack.config.test.js && cpy node_modules/mocha/mocha.css test/browser/libs/ && cpy node_modules/mocha/mocha.js test/browser/libs/ && cpy node_modules/chai/chai.js test/browser/libs/",
+    "build": "rimraf dist && webpack"
   },
   "repository": {
     "type": "git",
@@ -34,19 +34,24 @@
     "uuid": "3.0.0"
   },
   "devDependencies": {
-    "babel-plugin-transform-es3-member-expression-literals": "6.22.0",
-    "babel-plugin-transform-es3-property-literals": "6.22.0",
-    "babel-preset-env": "1.7.0",
-    "babel-preset-stage-0": "6.24.1",
-    "browserify": "16.2.2",
+    "@babel/core": "^7.0.0",
+    "@babel/register": "^7.0.0",
+    "babel-eslint": "^10.0.1",
+    "babel-plugin-dynamic-import-webpack": "^1.1.0",
     "chai": "4.1.2",
     "coveralls": "3.0.2",
+    "cpy-cli": "^2.0.0",
     "eslint": "4.19.1",
     "geth": "0.2.2",
     "istanbul": "0.4.5",
     "mocha": "5.1.1",
-    "uglify-js": "2.6.1",
-    "validator": "7.0.0"
+    "rimraf": "^2.6.2",
+    "scrypt-wasm": "^0.1.1",
+    "text-encoding": "^0.7.0",
+    "unminified-webpack-plugin": "^2.0.0",
+    "validator": "7.0.0",
+    "webpack": "^4.25.1",
+    "webpack-cli": "^3.1.2"
   },
   "browser": {
     "scrypt": false
