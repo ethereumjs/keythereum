@@ -97,7 +97,7 @@ module.exports = {
 
   /**
    * Check if the selected cipher is available.
-   * @param {string} algo Encryption algorithm.
+   * @param {string} cipher Encryption algorithm.
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
