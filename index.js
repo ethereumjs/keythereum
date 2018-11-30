@@ -86,7 +86,7 @@ module.exports = {
    * not valid hex, base64 will be used.  Otherwise, utf8 will be used.
    * @param {string} str String to be converted.
    * @param {string=} enc Encoding of the input string (optional).
-   * @return {buffer} Buffer (bytearray) containing the input data.
+   * @return {Buffer} Buffer (bytearray) containing the input data.
    */
   str2buf: function (str, enc) {
     if (!str || str.constructor !== String) return str;
@@ -106,11 +106,11 @@ module.exports = {
 
   /**
    * Symmetric private key encryption using secret (derived) key.
-   * @param {buffer|string} plaintext Data to be encrypted.
-   * @param {buffer|string} key Secret key.
-   * @param {buffer|string} iv Initialization vector.
+   * @param {Buffer|string} plaintext Data to be encrypted.
+   * @param {Buffer|string} key Secret key.
+   * @param {Buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {buffer} Encrypted data.
+   * @return {Buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
     var cipher, ciphertext;
@@ -123,11 +123,11 @@ module.exports = {
 
   /**
    * Symmetric private key decryption using secret (derived) key.
-   * @param {buffer|string} ciphertext Data to be decrypted.
-   * @param {buffer|string} key Secret key.
-   * @param {buffer|string} iv Initialization vector.
+   * @param {Buffer|string} ciphertext Data to be decrypted.
+   * @param {Buffer|string} key Secret key.
+   * @param {Buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {buffer} Decrypted data.
+   * @return {Buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
     var decipher, plaintext;
@@ -140,7 +140,7 @@ module.exports = {
 
   /**
    * Derive Ethereum address from private key.
-   * @param {buffer|string} privateKey ECDSA private key.
+   * @param {Buffer|string} privateKey ECDSA private key.
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
@@ -161,8 +161,8 @@ module.exports = {
    * encrypted text.  The MAC is the keccak-256 hash of the byte array
    * formed by concatenating the second 16 bytes of the derived key with
    * the ciphertext key's contents.
-   * @param {buffer|string} derivedKey Secret key derived from password.
-   * @param {buffer|string} ciphertext Text encrypted with secret key.
+   * @param {Buffer|string} derivedKey Secret key derived from password.
+   * @param {Buffer|string} ciphertext Text encrypted with secret key.
    * @return {string} Hex-encoded MAC.
    */
   getMAC: function (derivedKey, ciphertext) {
@@ -219,14 +219,14 @@ module.exports = {
 
   /**
    * Derive secret key from password with key dervation function.
-   * @param {string|buffer} password User-supplied password.
-   * @param {string|buffer} salt Randomly generated salt.
+   * @param {string|Buffer} password User-supplied password.
+   * @param {string|Buffer} salt Randomly generated salt.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
    * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
    * @param {function=} cb Callback function (optional).
-   * @return {buffer} Secret key derived from password.
+   * @return {Buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
     var prf, self = this;
@@ -297,7 +297,7 @@ module.exports = {
    * @param {string=} params.keyBytes Private key size in bytes.
    * @param {string=} params.ivBytes Initialization vector size in bytes.
    * @param {function=} cb Callback function (optional).
-   * @return {Object<string,buffer>} Private key, IV and salt.
+   * @return {Object<string,Buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
     var keyBytes, ivBytes, self = this;
@@ -329,10 +329,10 @@ module.exports = {
 
   /**
    * Assemble key data object in secret-storage format.
-   * @param {buffer} derivedKey Password-derived secret key.
-   * @param {buffer} privateKey Private key.
-   * @param {buffer} salt Randomly generated salt.
-   * @param {buffer} iv Initialization vector.
+   * @param {Buffer} derivedKey Password-derived secret key.
+   * @param {Buffer} privateKey Private key.
+   * @param {Buffer} salt Randomly generated salt.
+   * @param {Buffer} iv Initialization vector.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
@@ -385,10 +385,10 @@ module.exports = {
 
   /**
    * Export private key to keystore secret-storage format.
-   * @param {string|buffer} password User-supplied password.
-   * @param {string|buffer} privateKey Private key.
-   * @param {string|buffer} salt Randomly generated salt.
-   * @param {string|buffer} iv Initialization vector.
+   * @param {string|Buffer} password User-supplied password.
+   * @param {string|Buffer} privateKey Private key.
+   * @param {string|Buffer} salt Randomly generated salt.
+   * @param {string|Buffer} iv Initialization vector.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
@@ -416,7 +416,7 @@ module.exports = {
    * Recover plaintext private key from secret-storage key object.
    * @param {Object} keyObject Keystore object.
    * @param {function=} cb Callback function (optional).
-   * @return {buffer} Plaintext private key.
+   * @return {Buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
     var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
