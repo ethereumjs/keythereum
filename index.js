@@ -414,6 +414,7 @@ module.exports = {
 
   /**
    * Recover plaintext private key from secret-storage key object.
+   * @param {string|Buffer} password User-supplied password.
    * @param {Object} keyObject Keystore object.
    * @param {function=} cb Callback function (optional).
    * @return {Buffer} Plaintext private key.
