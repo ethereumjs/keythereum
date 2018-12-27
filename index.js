@@ -17,7 +17,9 @@ function isFunction(f) {
 }
 
 function keccak256(buffer) {
-  return createKeccakHash("keccak256").update(buffer).digest();
+  return createKeccakHash("keccak256")
+    .update(buffer)
+    .digest();
 }
 
 module.exports = {
@@ -28,7 +30,9 @@ module.exports = {
 
   scrypt: null,
 
-  crypto: isBrowser ? require("crypto-browserify") : require("crypto"),
+  crypto: isBrowser
+    ? require("crypto-browserify")
+    : require("crypto"),
 
   constants: {
 
@@ -63,7 +67,8 @@ module.exports = {
    * @return {boolean} True if the string is valid hex, false otherwise.
    */
   isHex: function (str) {
-    if (str.length % 2 === 0 && str.match(/^[0-9a-f]+$/i)) return true;
+    if (str.length % 2 === 0 && str.match(/^[0-9a-f]+$/i))
+      return true;
     return false;
   },
 
@@ -74,9 +79,11 @@ module.exports = {
    */
   isBase64: function (str) {
     var index;
-    if (str.length % 4 > 0 || str.match(/[^0-9a-z+\/=]/i)) return false;
+    if (str.length % 4 > 0 || str.match(/[^0-9a-z+\/=]/i))
+      return false;
     index = str.indexOf("=");
-    if (index === -1 || str.slice(index).match(/={1,2}/)) return true;
+    if (index === -1 || str.slice(index).match(/={1,2}/))
+      return true;
     return false;
   },
 
@@ -89,9 +96,12 @@ module.exports = {
    * @return {buffer} Buffer (bytearray) containing the input data.
    */
   str2buf: function (str, enc) {
-    if (!str || str.constructor !== String) return str;
-    if (!enc && this.isHex(str)) enc = "hex";
-    if (!enc && this.isBase64(str)) enc = "base64";
+    if (!str || str.constructor !== String)
+      return str;
+    if (!enc && this.isHex(str))
+      enc = "hex";
+    if (!enc && this.isBase64(str))
+      enc = "base64";
     return Buffer.from(str, enc);
   },
 
@@ -101,7 +111,137 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    return this.crypto.getCiphers().some(function (name) { return name === cipher; });
+    var localCiphers = [];
+    if (this.crypto.getCiphers().length > 0) {
+      localCiphers = this
+        .crypto
+        .getCiphers()
+    } else {
+      localCiphers = [
+        'aes-128-cbc',
+        'aes-128-cbc-hmac-sha1',
+        'aes-128-cbc-hmac-sha256',
+        'aes-128-ccm',
+        'aes-128-cfb',
+        'aes-128-cfb1',
+        'aes-128-cfb8',
+        'aes-128-ctr',
+        'aes-128-ecb',
+        'aes-128-gcm',
+        'aes-128-ofb',
+        'aes-128-xts',
+        'aes-192-cbc',
+        'aes-192-ccm',
+        'aes-192-cfb',
+        'aes-192-cfb1',
+        'aes-192-cfb8',
+        'aes-192-ctr',
+        'aes-192-ecb',
+        'aes-192-gcm',
+        'aes-192-ofb',
+        'aes-256-cbc',
+        'aes-256-cbc-hmac-sha1',
+        'aes-256-cbc-hmac-sha256',
+        'aes-256-ccm',
+        'aes-256-cfb',
+        'aes-256-cfb1',
+        'aes-256-cfb8',
+        'aes-256-ctr',
+        'aes-256-ecb',
+        'aes-256-gcm',
+        'aes-256-ofb',
+        'aes-256-xts',
+        'aes128',
+        'aes192',
+        'aes256',
+        'bf',
+        'bf-cbc',
+        'bf-cfb',
+        'bf-ecb',
+        'bf-ofb',
+        'blowfish',
+        'camellia-128-cbc',
+        'camellia-128-cfb',
+        'camellia-128-cfb1',
+        'camellia-128-cfb8',
+        'camellia-128-ecb',
+        'camellia-128-ofb',
+        'camellia-192-cbc',
+        'camellia-192-cfb',
+        'camellia-192-cfb1',
+        'camellia-192-cfb8',
+        'camellia-192-ecb',
+        'camellia-192-ofb',
+        'camellia-256-cbc',
+        'camellia-256-cfb',
+        'camellia-256-cfb1',
+        'camellia-256-cfb8',
+        'camellia-256-ecb',
+        'camellia-256-ofb',
+        'camellia128',
+        'camellia192',
+        'camellia256',
+        'cast',
+        'cast-cbc',
+        'cast5-cbc',
+        'cast5-cfb',
+        'cast5-ecb',
+        'cast5-ofb',
+        'des',
+        'des-cbc',
+        'des-cfb',
+        'des-cfb1',
+        'des-cfb8',
+        'des-ecb',
+        'des-ede',
+        'des-ede-cbc',
+        'des-ede-cfb',
+        'des-ede-ofb',
+        'des-ede3',
+        'des-ede3-cbc',
+        'des-ede3-cfb',
+        'des-ede3-cfb1',
+        'des-ede3-cfb8',
+        'des-ede3-ofb',
+        'des-ofb',
+        'des3',
+        'desx',
+        'desx-cbc',
+        'id-aes128-CCM',
+        'id-aes128-GCM',
+        'id-aes128-wrap',
+        'id-aes192-CCM',
+        'id-aes192-GCM',
+        'id-aes192-wrap',
+        'id-aes256-CCM',
+        'id-aes256-GCM',
+        'id-aes256-wrap',
+        'id-smime-alg-CMS3DESwrap',
+        'idea',
+        'idea-cbc',
+        'idea-cfb',
+        'idea-ecb',
+        'idea-ofb',
+        'rc2',
+        'rc2-40-cbc',
+        'rc2-64-cbc',
+        'rc2-cbc',
+        'rc2-cfb',
+        'rc2-ecb',
+        'rc2-ofb',
+        'rc4',
+        'rc4-40',
+        'rc4-hmac-md5',
+        'seed',
+        'seed-cbc',
+        'seed-cfb',
+        'seed-ecb',
+        'seed-ofb'
+      ]
+    }
+    return localCiphers.some(function (name) {
+      return name === cipher;
+    });
   },
 
   /**
@@ -113,10 +253,14 @@ module.exports = {
    * @return {buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
-    var cipher, ciphertext;
+    var cipher,
+      ciphertext;
     algo = algo || this.constants.cipher;
-    if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    cipher = this.crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    if (!this.isCipherAvailable(algo))
+      throw new Error(algo + " is not available");
+    cipher = this
+      .crypto
+      .createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
     ciphertext = cipher.update(this.str2buf(plaintext));
     return Buffer.concat([ciphertext, cipher.final()]);
   },
@@ -130,10 +274,14 @@ module.exports = {
    * @return {buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
-    var decipher, plaintext;
+    var decipher,
+      plaintext;
     algo = algo || this.constants.cipher;
-    if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    decipher = this.crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    if (!this.isCipherAvailable(algo))
+      throw new Error(algo + " is not available");
+    decipher = this
+      .crypto
+      .createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
     plaintext = decipher.update(this.str2buf(ciphertext));
     return Buffer.concat([plaintext, decipher.final()]);
   },
@@ -144,7 +292,8 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    var privateKeyBuffer, publicKey;
+    var privateKeyBuffer,
+      publicKey;
     privateKeyBuffer = this.str2buf(privateKey);
     if (privateKeyBuffer.length < 32) {
       privateKeyBuffer = Buffer.concat([
@@ -152,8 +301,12 @@ module.exports = {
         privateKeyBuffer
       ]);
     }
-    publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
-    return "0x" + keccak256(publicKey).slice(-20).toString("hex");
+    publicKey = secp256k1
+      .publicKeyCreate(privateKeyBuffer, false)
+      .slice(1);
+    return "0x" + keccak256(publicKey)
+      .slice(-20)
+      .toString("hex");
   },
 
   /**
@@ -168,7 +321,9 @@ module.exports = {
   getMAC: function (derivedKey, ciphertext) {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
       return keccak256(Buffer.concat([
-        this.str2buf(derivedKey).slice(16, 32),
+        this
+          .str2buf(derivedKey)
+          .slice(16, 32),
         this.str2buf(ciphertext)
       ])).toString("hex");
     }
@@ -178,12 +333,16 @@ module.exports = {
    * Used internally.
    */
   deriveKeyUsingScryptInNode: function (password, salt, options, cb) {
-    if (!isFunction(cb)) return this.deriveKeyUsingScryptInBrowser(password, salt, options);
-    require("scrypt").hash(password, {
-      N: options.kdfparams.n || this.constants.scrypt.n,
-      r: options.kdfparams.r || this.constants.scrypt.r,
-      p: options.kdfparams.p || this.constants.scrypt.p
-    }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+    if (!isFunction(cb))
+      return this.deriveKeyUsingScryptInBrowser(password, salt, options);
+    require("scrypt")
+      .hash(password, {
+        N: options.kdfparams.n || this.constants.scrypt.n,
+        r: options.kdfparams.r || this.constants.scrypt.r,
+        p: options.kdfparams.p || this.constants.scrypt.p
+      }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt)
+      .then(cb)
+      .catch(cb);
   },
 
   /**
@@ -191,7 +350,8 @@ module.exports = {
    */
   deriveKeyUsingScryptInBrowser: function (password, salt, options, cb) {
     var self = this;
-    if (this.scrypt === null) this.scrypt = require("./lib/scrypt");
+    if (this.scrypt === null)
+      this.scrypt = require("./lib/scrypt");
     if (isFunction(this.scrypt)) {
       this.scrypt = this.scrypt(options.kdfparams.memory || this.constants.scrypt.memory);
     }
@@ -229,7 +389,8 @@ module.exports = {
    * @return {buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
-    var prf, self = this;
+    var prf,
+      self = this;
     if (typeof password === "undefined" || password === null || !salt) {
       throw new Error("Must provide password and salt to derive a key");
     }
@@ -242,29 +403,33 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (!this.browser) return this.deriveKeyUsingScryptInNode(password, salt, options, cb);
+      if (!this.browser)
+        return this.deriveKeyUsingScryptInNode(password, salt, options, cb);
       return this.deriveKeyUsingScryptInBrowser(password, salt, options, cb);
     }
 
     // use default key derivation function (PBKDF2)
     prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
-    if (prf === "hmac-sha256") prf = "sha256";
+    if (prf === "hmac-sha256")
+      prf = "sha256";
     if (!isFunction(cb)) {
       if (!this.crypto.pbkdf2Sync) {
         return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
           password.toString("utf8"),
           sjcl.codec.hex.toBits(salt.toString("hex")),
           options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+          (options.kdfparams.dklen || self.constants.pbkdf2.dklen) * 8
         )), "hex");
       }
-      return this.crypto.pbkdf2Sync(
-        password,
-        salt,
-        options.kdfparams.c || this.constants.pbkdf2.c,
-        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-        prf
-      );
+      return this
+        .crypto
+        .pbkdf2Sync(
+          password,
+          salt,
+          options.kdfparams.c || this.constants.pbkdf2.c,
+          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+          prf
+        );
     }
     if (!this.crypto.pbkdf2) {
       setTimeout(function () {
@@ -272,21 +437,24 @@ module.exports = {
           password.toString("utf8"),
           sjcl.codec.hex.toBits(salt.toString("hex")),
           options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+          (options.kdfparams.dklen || self.constants.pbkdf2.dklen) * 8
         )), "hex"));
       }, 0);
     } else {
-      this.crypto.pbkdf2(
-        password,
-        salt,
-        options.kdfparams.c || this.constants.pbkdf2.c,
-        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-        prf,
-        function (ex, derivedKey) {
-          if (ex) return cb(ex);
-          cb(derivedKey);
-        }
-      );
+      this
+        .crypto
+        .pbkdf2(
+          password,
+          salt,
+          options.kdfparams.c || this.constants.pbkdf2.c,
+          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+          prf,
+          function (ex, derivedKey) {
+            if (ex)
+              return cb(ex);
+            cb(derivedKey);
+          }
+        );
     }
   },
 
@@ -300,14 +468,17 @@ module.exports = {
    * @return {Object<string,buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
-    var keyBytes, ivBytes, self = this;
+    var keyBytes,
+      ivBytes,
+      self = this;
     params = params || {};
     keyBytes = params.keyBytes || this.constants.keyBytes;
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
     function checkBoundsAndCreateObject(randomBytes) {
       var privateKey = randomBytes.slice(0, keyBytes);
-      if (!secp256k1.privateKeyVerify(privateKey)) return self.create(params, cb);
+      if (!secp256k1.privateKeyVerify(privateKey))
+        return self.create(params, cb);
       return {
         privateKey: privateKey,
         iv: randomBytes.slice(keyBytes, keyBytes + ivBytes),
@@ -321,10 +492,13 @@ module.exports = {
     }
 
     // asynchronous key generation
-    this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
-      if (err) return cb(err);
-      cb(checkBoundsAndCreateObject(randomBytes));
-    });
+    this
+      .crypto
+      .randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
+        if (err)
+          return cb(err);
+        cb(checkBoundsAndCreateObject(randomBytes));
+      });
   },
 
   /**
@@ -340,20 +514,28 @@ module.exports = {
    * @return {Object}
    */
   marshal: function (derivedKey, privateKey, salt, iv, options) {
-    var ciphertext, keyObject, algo;
+    var ciphertext,
+      keyObject,
+      algo;
     options = options || {};
     options.kdfparams = options.kdfparams || {};
     algo = options.cipher || this.constants.cipher;
 
     // encrypt using first 16 bytes of derived key
-    ciphertext = this.encrypt(privateKey, derivedKey.slice(0, 16), iv, algo).toString("hex");
+    ciphertext = this
+      .encrypt(privateKey, derivedKey.slice(0, 16), iv, algo)
+      .toString("hex");
 
     keyObject = {
-      address: this.privateKeyToAddress(privateKey).slice(2),
+      address: this
+        .privateKeyToAddress(privateKey)
+        .slice(2),
       crypto: {
         cipher: options.cipher || this.constants.cipher,
         ciphertext: ciphertext,
-        cipherparams: { iv: iv.toString("hex") },
+        cipherparams: {
+          iv: iv.toString("hex")
+        },
         mac: this.getMAC(derivedKey, ciphertext)
       },
       id: uuid.v4(), // random 128-bit UUID
@@ -419,7 +601,12 @@ module.exports = {
    * @return {buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
-    var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
+    var keyObjectCrypto,
+      iv,
+      salt,
+      ciphertext,
+      algo,
+      self = this;
     keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
     // verify that message authentication codes match, then decrypt
@@ -467,7 +654,10 @@ module.exports = {
     var filename = "UTC--" + new Date().toISOString() + "--" + address;
 
     // Windows does not permit ":" in filenames, replace all with "-"
-    if (process.platform === "win32") filename = filename.split(":").join("-");
+    if (process.platform === "win32")
+      filename = filename
+        .split(":")
+        .join("-");
 
     return filename;
   },
@@ -480,12 +670,16 @@ module.exports = {
    * @return {string} JSON filename (Node.js) or JSON string (browser).
    */
   exportToFile: function (keyObject, keystore, cb) {
-    var outfile, outpath, json, fs;
+    var outfile,
+      outpath,
+      json,
+      fs;
     keystore = keystore || "keystore";
     outfile = this.generateKeystoreFilename(keyObject.address);
     json = JSON.stringify(keyObject);
     if (this.browser) {
-      if (!isFunction(cb)) return json;
+      if (!isFunction(cb))
+        return json;
       return cb(json);
     }
     outpath = require("path").join(keystore, outfile);
@@ -495,7 +689,8 @@ module.exports = {
       return outpath;
     }
     fs.writeFile(outpath, json, function (err) {
-      if (err) return cb(err);
+      if (err)
+        return cb(err);
       cb(outpath);
     });
   },
@@ -509,15 +704,21 @@ module.exports = {
    * @return {Object} Keystore data file's contents.
    */
   importFromFile: function (address, datadir, cb) {
-    var keystore, filepath, path, fs;
-    if (this.browser) throw new Error("method only available in Node.js");
+    var keystore,
+      filepath,
+      path,
+      fs;
+    if (this.browser)
+      throw new Error("method only available in Node.js");
     path = require("path");
     fs = require("fs");
     address = address.replace("0x", "");
     address = address.toLowerCase();
 
     function findKeyfile(keystore, address, files) {
-      var i, len, filepath = null;
+      var i,
+        len,
+        filepath = null;
       for (i = 0, len = files.length; i < len; ++i) {
         if (files[i].indexOf(address) > -1) {
           filepath = path.join(keystore, files[i]);
@@ -541,7 +742,8 @@ module.exports = {
     }
     fs.readdir(keystore, function (ex, files) {
       var filepath;
-      if (ex) return cb(ex);
+      if (ex)
+        return cb(ex);
       filepath = findKeyfile(keystore, address, files);
       if (!filepath) {
         return cb(new Error("could not find key file for address " + address));
