@@ -410,16 +410,16 @@ module.exports = {
       }, 0);
     } else {
       this.crypto.pbkdf2(
-          password,
-          salt,
-          options.kdfparams.c || this.constants.pbkdf2.c,
-          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-          prf,
-          function (ex, derivedKey) {
-            if (ex) return cb(ex);
-            cb(derivedKey);
-          }
-        );
+        password,
+        salt,
+        options.kdfparams.c || this.constants.pbkdf2.c,
+        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+        prf,
+        function (ex, derivedKey) {
+          if (ex) return cb(ex);
+          cb(derivedKey);
+        }
+      );
     }
   },
 
@@ -455,9 +455,9 @@ module.exports = {
 
     // asynchronous key generation
     this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
-        if (err) return cb(err);
-        cb(checkBoundsAndCreateObject(randomBytes));
-      });
+      if (err) return cb(err);
+      cb(checkBoundsAndCreateObject(randomBytes));
+    });
   },
 
   /**
@@ -486,9 +486,7 @@ module.exports = {
       crypto: {
         cipher: options.cipher || this.constants.cipher,
         ciphertext: ciphertext,
-        cipherparams: {
-          iv: iv.toString("hex")
-        },
+        cipherparams: { iv: iv.toString("hex") },
         mac: this.getMAC(derivedKey, ciphertext)
       },
       id: uuid.v4(), // random 128-bit UUID
@@ -554,12 +552,7 @@ module.exports = {
    * @return {buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
-    var keyObjectCrypto,
-      iv,
-      salt,
-      ciphertext,
-      algo,
-      self = this;
+    var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
     keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
     // verify that message authentication codes match, then decrypt
@@ -620,10 +613,7 @@ module.exports = {
    * @return {string} JSON filename (Node.js) or JSON string (browser).
    */
   exportToFile: function (keyObject, keystore, cb) {
-    var outfile,
-      outpath,
-      json,
-      fs;
+    var outfile, outpath, json, fs;
     keystore = keystore || "keystore";
     outfile = this.generateKeystoreFilename(keyObject.address);
     json = JSON.stringify(keyObject);
@@ -652,10 +642,7 @@ module.exports = {
    * @return {Object} Keystore data file's contents.
    */
   importFromFile: function (address, datadir, cb) {
-    var keystore,
-      filepath,
-      path,
-      fs;
+    var keystore, filepath, path, fs;
     if (this.browser) throw new Error("method only available in Node.js");
     path = require("path");
     fs = require("fs");
