@@ -241,8 +241,7 @@ module.exports = {
    * @return {buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
-    var cipher,
-      ciphertext;
+    var cipher, ciphertext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
     cipher = this.crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
@@ -259,11 +258,9 @@ module.exports = {
    * @return {buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
-    var decipher,
-      plaintext;
+    var decipher, plaintext;
     algo = algo || this.constants.cipher;
-    if (!this.isCipherAvailable(algo))
-      throw new Error(algo + " is not available");
+    if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
     decipher = this.crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
     plaintext = decipher.update(this.str2buf(ciphertext));
     return Buffer.concat([plaintext, decipher.final()]);
@@ -275,8 +272,7 @@ module.exports = {
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
-    var privateKeyBuffer,
-      publicKey;
+    var privateKeyBuffer, publicKey;
     privateKeyBuffer = this.str2buf(privateKey);
     if (privateKeyBuffer.length < 32) {
       privateKeyBuffer = Buffer.concat([
@@ -310,13 +306,12 @@ module.exports = {
    * Used internally.
    */
   deriveKeyUsingScryptInNode: function (password, salt, options, cb) {
-    if (!isFunction(cb))
-      return this.deriveKeyUsingScryptInBrowser(password, salt, options);
+    if (!isFunction(cb)) return this.deriveKeyUsingScryptInBrowser(password, salt, options);
     require("scrypt").hash(password, {
-        N: options.kdfparams.n || this.constants.scrypt.n,
-        r: options.kdfparams.r || this.constants.scrypt.r,
-        p: options.kdfparams.p || this.constants.scrypt.p
-      }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+      N: options.kdfparams.n || this.constants.scrypt.n,
+      r: options.kdfparams.r || this.constants.scrypt.r,
+      p: options.kdfparams.p || this.constants.scrypt.p
+    }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
   },
 
   /**
@@ -388,16 +383,16 @@ module.exports = {
           password.toString("utf8"),
           sjcl.codec.hex.toBits(salt.toString("hex")),
           options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen) * 8
+          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
         )), "hex");
       }
       return this.crypto.pbkdf2Sync(
-          password,
-          salt,
-          options.kdfparams.c || this.constants.pbkdf2.c,
-          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-          prf
-        );
+        password,
+        salt,
+        options.kdfparams.c || this.constants.pbkdf2.c,
+        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+        prf
+      );
     }
     if (!this.crypto.pbkdf2) {
       setTimeout(function () {
