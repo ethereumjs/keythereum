@@ -5,6 +5,8 @@
 
 "use strict";
 
+const bops = require('bops')
+
 var isBrowser = typeof process === "undefined" || !process.nextTick || Boolean(process.browser);
 
 var sjcl = require("sjcl");
@@ -92,7 +94,7 @@ module.exports = {
     if (!str || str.constructor !== String) return str;
     if (!enc && this.isHex(str)) enc = "hex";
     if (!enc && this.isBase64(str)) enc = "base64";
-    return Buffer.from(str, enc);
+    return bops.from(str, enc);
   },
 
   /**
@@ -118,7 +120,7 @@ module.exports = {
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
     cipher = this.crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
     ciphertext = cipher.update(this.str2buf(plaintext));
-    return Buffer.concat([ciphertext, cipher.final()]);
+    return bops.join([ciphertext, cipher.final()]);
   },
 
   /**
@@ -135,7 +137,7 @@ module.exports = {
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
     decipher = this.crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
     plaintext = decipher.update(this.str2buf(ciphertext));
-    return Buffer.concat([plaintext, decipher.final()]);
+    return bops.join([plaintext, decipher.final()]);
   },
 
   /**
@@ -147,8 +149,8 @@ module.exports = {
     var privateKeyBuffer, publicKey;
     privateKeyBuffer = this.str2buf(privateKey);
     if (privateKeyBuffer.length < 32) {
-      privateKeyBuffer = Buffer.concat([
-        Buffer.alloc(32 - privateKeyBuffer.length, 0),
+      privateKeyBuffer = bops.join([
+        bops.create(32 - privateKeyBuffer.length, 0),
         privateKeyBuffer
       ]);
     }
@@ -159,7 +161,7 @@ module.exports = {
   /**
    * Calculate message authentication code from secret (derived) key and
    * encrypted text.  The MAC is the keccak-256 hash of the byte array
-   * formed by concatenating the second 16 bytes of the derived key with
+   * formed by joinenating the second 16 bytes of the derived key with
    * the ciphertext key's contents.
    * @param {buffer|string} derivedKey Secret key derived from password.
    * @param {buffer|string} ciphertext Text encrypted with secret key.
@@ -167,7 +169,7 @@ module.exports = {
    */
   getMAC: function (derivedKey, ciphertext) {
     if (derivedKey !== undefined && derivedKey !== null && ciphertext !== undefined && ciphertext !== null) {
-      return keccak256(Buffer.concat([
+      return keccak256(bops.join([
         this.str2buf(derivedKey).slice(16, 32),
         this.str2buf(ciphertext)
       ])).toString("hex");
@@ -196,7 +198,7 @@ module.exports = {
       this.scrypt = this.scrypt(options.kdfparams.memory || this.constants.scrypt.memory);
     }
     if (!isFunction(cb)) {
-      return Buffer.from(this.scrypt.to_hex(this.scrypt.crypto_scrypt(
+      return bops.from(this.scrypt.to_hex(this.scrypt.crypto_scrypt(
         password,
         salt,
         options.kdfparams.n || this.constants.scrypt.n,
@@ -206,7 +208,7 @@ module.exports = {
       )), "hex");
     }
     setTimeout(function () {
-      cb(Buffer.from(self.scrypt.to_hex(self.scrypt.crypto_scrypt(
+      cb(bops.from(self.scrypt.to_hex(self.scrypt.crypto_scrypt(
         password,
         salt,
         options.kdfparams.n || self.constants.scrypt.n,
@@ -251,7 +253,7 @@ module.exports = {
     if (prf === "hmac-sha256") prf = "sha256";
     if (!isFunction(cb)) {
       if (!this.crypto.pbkdf2Sync) {
-        return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+        return bops.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
           password.toString("utf8"),
           sjcl.codec.hex.toBits(salt.toString("hex")),
           options.kdfparams.c || self.constants.pbkdf2.c,
@@ -268,7 +270,7 @@ module.exports = {
     }
     if (!this.crypto.pbkdf2) {
       setTimeout(function () {
-        cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+        cb(bops.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
           password.toString("utf8"),
           sjcl.codec.hex.toBits(salt.toString("hex")),
           options.kdfparams.c || self.constants.pbkdf2.c,
