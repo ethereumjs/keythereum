@@ -1,7 +1,7 @@
 {
-  "name": "keythereum",
+  "name": "@invisible-college/keythereum",
   "version": "1.1.0",
-  "description": "Create, import and export Ethereum keys",
+  "description": "A browser-friendly fork of keythereum using bops.",
   "main": "index.js",
   "directories": {
     "test": "test",
