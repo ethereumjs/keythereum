@@ -561,17 +561,33 @@ describe("Key derivation", function () {
       if (derivedKey.error) return done(derivedKey);
       assert.strictEqual(derivedKey.toString("hex"), t.expected);
 
-      // asynchronous
-      keythereum.deriveKey(
-        t.input.password,
-        t.input.salt,
-        { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
-        function (derivedKey) {
+      // asynchronous - with promise
+      keythereum
+        .deriveKey(
+          t.input.password,
+          t.input.salt,
+          { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
+          true
+        )
+        .then(function (derivedKey) {
           if (derivedKey.error) return done(derivedKey);
           assert.strictEqual(derivedKey.toString("hex"), t.expected);
-          done();
-        }
-      );
+        })
+        .then(function () {
+          // asynchronous
+          keythereum.deriveKey(
+            t.input.password,
+            t.input.salt,
+            { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
+            function (derivedKey) {
+              if (derivedKey.error) return done(derivedKey);
+              assert.strictEqual(derivedKey.toString("hex"), t.expected);
+              done();
+            }
+          );
+        });
+
+
     });
     it("using sjcl: " + t.input.kdf, function (done) {
       var derivedKey;
@@ -667,19 +683,35 @@ describe("Dump private key", function () {
       checkKeyObj.values(keythereum, t, keyObject);
 
       // asynchronous
-      keythereum.dump(
-        t.input.password,
-        t.input.privateKey,
-        t.input.salt,
-        t.input.iv,
-        { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
-        function (keyObj) {
+      keythereum
+        .dump(
+          t.input.password,
+          t.input.privateKey,
+          t.input.salt,
+          t.input.iv,
+          { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
+          true
+        )
+        .then(function (keyObj) {
           if (keyObj.error) return done(keyObj);
           checkKeyObj.structure(keythereum, keyObj);
           checkKeyObj.values(keythereum, t, keyObj);
-          done();
-        }
-      );
+        })
+        .then(function () {
+          keythereum.dump(
+            t.input.password,
+            t.input.privateKey,
+            t.input.salt,
+            t.input.iv,
+            { kdf: t.input.kdf, kdfparams: t.input.kdfparams },
+            function (keyObj) {
+              if (keyObj.error) return done(keyObj);
+              checkKeyObj.structure(keythereum, keyObj);
+              checkKeyObj.values(keythereum, t, keyObj);
+              done();
+            }
+          );
+        });
     });
   };
   test({
@@ -821,17 +853,32 @@ describe("Export to file", function () {
     fs.unlinkSync(keypath);
 
     // asynchronous
-    keythereum.exportToFile(keyObj, null, function (keyPath) {
-      var outFile = keyPath.split("/");
-      assert.isArray(outFile);
-      outFile = outFile[outFile.length - 1];
-      assert.strictEqual(outFile.slice(0, 5), "UTC--");
-      assert.isAbove(outFile.indexOf(keyObj.address), -1);
-      fs.unlink(keyPath, function (exc) {
-        if (exc) return done(exc);
-        done();
+    keythereum
+      .exportToFile(keyObj, null, true)
+      .then(function (keyPath) {
+        var outFile = keyPath.split("/");
+        assert.isArray(outFile);
+        outFile = outFile[outFile.length - 1];
+        assert.strictEqual(outFile.slice(0, 5), "UTC--");
+        assert.isAbove(outFile.indexOf(keyObj.address), -1);
+        fs.unlink(keyPath, function (exc) {
+          if (exc) return done(exc);
+        });
+      })
+      .then(function () {
+        keythereum.exportToFile(keyObj, null, function (keyPath) {
+          var outFile = keyPath.split("/");
+          assert.isArray(outFile);
+          outFile = outFile[outFile.length - 1];
+          assert.strictEqual(outFile.slice(0, 5), "UTC--");
+          assert.isAbove(outFile.indexOf(keyObj.address), -1);
+          fs.unlink(keyPath, function (exc) {
+            if (exc) return done(exc);
+            done();
+          });
+        });
       });
-    });
+
   });
   it("export key to json (browser)", function (done) {
     var json;
@@ -863,11 +910,20 @@ describe("Import from keystore file", function () {
       keyObject = keythereum.importFromFile(t.input.address, t.input.datadir);
       checkKeyObj.structure(keythereum, keyObject);
       checkKeyObj.values(keythereum, t, keyObject);
-      keythereum.importFromFile(t.input.address, t.input.datadir, function (keyObj) {
-        checkKeyObj.structure(keythereum, keyObj);
-        checkKeyObj.values(keythereum, t, keyObj);
-        done();
-      });
+
+      // asynchronous
+      keythereum.importFromFile(t.input.address, t.input.datadir, true)
+        .then(function (keyObj) {
+          checkKeyObj.structure(keythereum, keyObj);
+          checkKeyObj.values(keythereum, t, keyObj);
+        })
+        .then(function () {
+          keythereum.importFromFile(t.input.address, t.input.datadir, function (keyObj) {
+            checkKeyObj.structure(keythereum, keyObj);
+            checkKeyObj.values(keythereum, t, keyObj);
+            done();
+          });
+        });
     });
   }
 
@@ -1108,10 +1164,16 @@ describe("Recover plaintext private key from key object", function () {
       assert.strictEqual(dk.toString("hex"), t.expected);
 
       // asynchronous
-      keythereum.recover(t.input.password, t.input.keyObject, function (dk) {
-        assert.strictEqual(dk.toString("hex"), t.expected);
-        done();
-      });
+      keythereum.recover(t.input.password, t.input.keyObject, true)
+        .then(function (dk) {
+          assert.strictEqual(dk.toString("hex"), t.expected);
+        })
+        .then(function () {
+          keythereum.recover(t.input.password, t.input.keyObject, function (dk) {
+            assert.strictEqual(dk.toString("hex"), t.expected);
+            done();
+          });
+        });
     });
   };
 
@@ -1139,10 +1201,16 @@ describe("Recover plaintext private key from key object", function () {
 
   it("should fail if the password is wrong", function (done) {
     assert.throws(function () { keythereum.recover("barfoo", foobarKeyObject); }, "message authentication code mismatch");
-    keythereum.recover("barfoo", foobarKeyObject, function (err) {
-      assert.strictEqual(err.message, "message authentication code mismatch");
-      done();
-    });
+    keythereum.recover("barfoo", foobarKeyObject, true)
+      .catch(function (err) {
+        assert.strictEqual(err.message, "message authentication code mismatch");
+      })
+      .then(function () {
+        keythereum.recover("barfoo", foobarKeyObject, function (err) {
+          assert.strictEqual(err.message, "message authentication code mismatch");
+          done();
+        });
+      });
   });
 
   test({
