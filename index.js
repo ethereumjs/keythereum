@@ -266,33 +266,47 @@ module.exports = {
     // use default key derivation function (PBKDF2)
     prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
     if (prf === "hmac-sha256") prf = "sha256";
-    if (!isFunction(cb)) {
-      if (!this.crypto.pbkdf2Sync) {
-        return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-          password.toString("utf8"),
-          sjcl.codec.hex.toBits(salt.toString("hex")),
-          options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-        )), "hex");
+
+    if (!this.crypto.pbkdf2Sync) {
+      // async - callback
+      if (isFunction(cb)) {
+        setTimeout(function () {
+          cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+            password.toString("utf8"),
+            sjcl.codec.hex.toBits(salt.toString("hex")),
+            options.kdfparams.c || self.constants.pbkdf2.c,
+            (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+          )), "hex"));
+        }, 0);
       }
-      return this.crypto.pbkdf2Sync(
-        password,
-        salt,
-        options.kdfparams.c || this.constants.pbkdf2.c,
-        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-        prf
-      );
+      // async - promise
+      if (isTrue(cb)) {
+        return new Promise(function (resolve, reject) {
+          try {
+            setTimeout(function () {
+              resolve(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+                password.toString("utf8"),
+                sjcl.codec.hex.toBits(salt.toString("hex")),
+                options.kdfparams.c || self.constants.pbkdf2.c,
+                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+              )), "hex"));
+            }, 0);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+      // sync
+      return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+        password.toString("utf8"),
+        sjcl.codec.hex.toBits(salt.toString("hex")),
+        options.kdfparams.c || self.constants.pbkdf2.c,
+        (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+      )), "hex");
     }
-    if (!this.crypto.pbkdf2) {
-      setTimeout(function () {
-        cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-          password.toString("utf8"),
-          sjcl.codec.hex.toBits(salt.toString("hex")),
-          options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-        )), "hex"));
-      }, 0);
-    } else {
+
+    // async - callback
+    if (isFunction(cb)) {
       this.crypto.pbkdf2(
         password,
         salt,
@@ -305,6 +319,34 @@ module.exports = {
         }
       );
     }
+    // async - promise
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        try {
+          this.crypto.pbkdf2(
+            password,
+            salt,
+            options.kdfparams.c || this.constants.pbkdf2.c,
+            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+            prf,
+            function (ex, derivedKey) {
+              if (ex) return reject(ex);
+              resolve(derivedKey);
+            }
+          );
+        } catch (e) {
+          reject(e);
+        }
+      }.bind(this));
+    }
+    // sync
+    return this.crypto.pbkdf2Sync(
+      password,
+      salt,
+      options.kdfparams.c || this.constants.pbkdf2.c,
+      options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+      prf
+    );
   },
 
   /**
