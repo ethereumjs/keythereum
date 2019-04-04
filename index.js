@@ -284,7 +284,7 @@ module.exports = {
       }
       // async - promise
       if (isTrue(cb)) {
-        return new Promise(function (resolve, reject) {
+        return new Promise(function (resolve) {
           setTimeout(function () {
             resolve(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
               password.toString("utf8"),
