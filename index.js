@@ -497,7 +497,7 @@ module.exports = {
    * @return {buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
-    var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
+    var keyObjectCrypto, iv, salt, ciphertext, algo, decryptedKey, self = this;
     keyObjectCrypto = keyObject.Crypto || keyObject.crypto;
 
     // verify that message authentication codes match, then decrypt
@@ -539,7 +539,8 @@ module.exports = {
       return new Promise(function (resolve, reject) {
         this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
           try {
-            resolve(verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo));
+            decryptedKey = verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo);
+            resolve(decryptedKey);
           } catch (exc) {
             reject(exc);
           }
