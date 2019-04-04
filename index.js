@@ -189,6 +189,7 @@ module.exports = {
         r: options.kdfparams.r || this.constants.scrypt.r,
         p: options.kdfparams.p || this.constants.scrypt.p
       }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
+      return null;
     }
     // asynchronous - return promise
     if (isTrue(cb)) {
@@ -225,6 +226,7 @@ module.exports = {
       setTimeout(function () {
         cb(derive());
       }, 0);
+      return null;
     }
     if (isTrue(cb)) {
       return new Promise(function (resolve) {
@@ -278,22 +280,19 @@ module.exports = {
             (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
           )), "hex"));
         }, 0);
+        return null;
       }
       // async - promise
       if (isTrue(cb)) {
         return new Promise(function (resolve, reject) {
-          try {
-            setTimeout(function () {
-              resolve(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-                password.toString("utf8"),
-                sjcl.codec.hex.toBits(salt.toString("hex")),
-                options.kdfparams.c || self.constants.pbkdf2.c,
-                (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-              )), "hex"));
-            }, 0);
-          } catch (e) {
-            reject(e);
-          }
+          setTimeout(function () {
+            resolve(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
+              password.toString("utf8"),
+              sjcl.codec.hex.toBits(salt.toString("hex")),
+              options.kdfparams.c || self.constants.pbkdf2.c,
+              (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
+            )), "hex"));
+          }, 0);
         });
       }
       // sync
@@ -318,25 +317,22 @@ module.exports = {
           cb(derivedKey);
         }
       );
+      return null;
     }
     // async - promise
     if (isTrue(cb)) {
       return new Promise(function (resolve, reject) {
-        try {
-          this.crypto.pbkdf2(
-            password,
-            salt,
-            options.kdfparams.c || this.constants.pbkdf2.c,
-            options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-            prf,
-            function (ex, derivedKey) {
-              if (ex) return reject(ex);
-              resolve(derivedKey);
-            }
-          );
-        } catch (e) {
-          reject(e);
-        }
+        this.crypto.pbkdf2(
+          password,
+          salt,
+          options.kdfparams.c || this.constants.pbkdf2.c,
+          options.kdfparams.dklen || this.constants.pbkdf2.dklen,
+          prf,
+          function (ex, derivedKey) {
+            if (ex) return reject(ex);
+            resolve(derivedKey);
+          }
+        );
       }.bind(this));
     }
     // sync
@@ -374,16 +370,25 @@ module.exports = {
       };
     }
 
-    // synchronous key generation if callback not provided
-    if (!isFunction(cb)) {
-      return checkBoundsAndCreateObject(this.crypto.randomBytes(keyBytes + ivBytes + keyBytes));
+    // async - callback
+    if (isFunction(cb)) {
+      this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
+        if (err) return cb(err);
+        cb(checkBoundsAndCreateObject(randomBytes));
+      });
+      return null;
     }
-
-    // asynchronous key generation
-    this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
-      if (err) return cb(err);
-      cb(checkBoundsAndCreateObject(randomBytes));
-    });
+    // async - promise
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
+          if (err) return reject(err);
+          resolve(checkBoundsAndCreateObject(randomBytes));
+        });
+      });
+    }
+    // sync
+    return checkBoundsAndCreateObject(this.crypto.randomBytes(keyBytes + ivBytes + keyBytes));
   },
 
   /**
@@ -460,15 +465,29 @@ module.exports = {
     iv = this.str2buf(iv);
     privateKey = this.str2buf(privateKey);
 
-    // synchronous if no callback provided
-    if (!isFunction(cb)) {
-      return this.marshal(this.deriveKey(password, salt, options), privateKey, salt, iv, options);
+    // async - callback
+    if (isFunction(cb)) {
+      this.deriveKey(password, salt, options, function (derivedKey) {
+        cb(this.marshal(derivedKey, privateKey, salt, iv, options));
+      }.bind(this));
+      return null;
     }
 
-    // asynchronous if callback provided
-    this.deriveKey(password, salt, options, function (derivedKey) {
-      cb(this.marshal(derivedKey, privateKey, salt, iv, options));
-    }.bind(this));
+    // async - promse
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        this.deriveKey(password, salt, options, function (derivedKey) {
+          try {
+            resolve(this.marshal(derivedKey, privateKey, salt, iv, options));
+          } catch (e) {
+            reject(e);
+          }
+        }.bind(this));
+      }.bind(this));
+    }
+
+    // sync
+    return this.marshal(this.deriveKey(password, salt, options), privateKey, salt, iv, options);
   },
 
   /**
@@ -504,17 +523,31 @@ module.exports = {
       throw new Error("PBKDF2 only supported with HMAC-SHA256");
     }
 
-    // derive secret key from password
-    if (!isFunction(cb)) {
-      return verifyAndDecrypt(this.deriveKey(password, salt, keyObjectCrypto), salt, iv, ciphertext, algo);
+    // async - callback
+    if (isFunction(cb)) {
+      this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
+        try {
+          cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo));
+        } catch (exc) {
+          cb(exc);
+        }
+      });
+      return null;
     }
-    this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
-      try {
-        cb(verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo));
-      } catch (exc) {
-        cb(exc);
-      }
-    });
+    // async - promise
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        this.deriveKey(password, salt, keyObjectCrypto, function (derivedKey) {
+          try {
+            resolve(verifyAndDecrypt(derivedKey, salt, iv, ciphertext, algo));
+          } catch (exc) {
+            reject(exc);
+          }
+        });
+      }.bind(this));
+    }
+    // sync
+    return verifyAndDecrypt(this.deriveKey(password, salt, keyObjectCrypto), salt, iv, ciphertext, algo);
   },
 
   /**
@@ -549,14 +582,28 @@ module.exports = {
     }
     outpath = require("path").join(keystore, outfile);
     fs = require("fs");
-    if (!isFunction(cb)) {
-      fs.writeFileSync(outpath, json);
-      return outpath;
+
+    // async - callback
+    if (isFunction(cb)) {
+      fs.writeFile(outpath, json, function (err) {
+        if (err) return cb(err);
+        cb(outpath);
+      });
+      return null;
     }
-    fs.writeFile(outpath, json, function (err) {
-      if (err) return cb(err);
-      cb(outpath);
-    });
+    // async - promise
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        fs.writeFile(outpath, json, function (err) {
+          if (err) return reject(err);
+          resolve(outpath);
+        });
+      });
+    }
+    // sync
+    fs.writeFileSync(outpath, json);
+    return outpath;
+
   },
 
   /**
@@ -591,22 +638,40 @@ module.exports = {
 
     datadir = datadir || path.join(process.env.HOME, ".ethereum");
     keystore = path.join(datadir, "keystore");
-    if (!isFunction(cb)) {
-      filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
-      if (!filepath) {
-        throw new Error("could not find key file for address " + address);
-      }
-      return JSON.parse(fs.readFileSync(filepath));
+
+    // async - callback
+    if (isFunction(cb)) {
+      fs.readdir(keystore, function (ex, files) {
+        var filepath;
+        if (ex) return cb(ex);
+        filepath = findKeyfile(keystore, address, files);
+        if (!filepath) {
+          return cb(new Error("could not find key file for address " + address));
+        }
+        return cb(JSON.parse(fs.readFileSync(filepath)));
+      });
+      return null;
     }
-    fs.readdir(keystore, function (ex, files) {
-      var filepath;
-      if (ex) return cb(ex);
-      filepath = findKeyfile(keystore, address, files);
-      if (!filepath) {
-        return cb(new Error("could not find key file for address " + address));
-      }
-      return cb(JSON.parse(fs.readFileSync(filepath)));
-    });
+    // async - promise
+    if (isTrue(cb)) {
+      return new Promise(function (resolve, reject) {
+        fs.readdir(keystore, function (ex, files) {
+          var filepath;
+          if (ex) return reject(ex);
+          filepath = findKeyfile(keystore, address, files);
+          if (!filepath) {
+            return reject(new Error("could not find key file for address " + address));
+          }
+          return resolve(JSON.parse(fs.readFileSync(filepath)));
+        });
+      });
+    }
+    // sync
+    filepath = findKeyfile(keystore, address, fs.readdirSync(keystore));
+    if (!filepath) {
+      throw new Error("could not find key file for address " + address);
+    }
+    return JSON.parse(fs.readFileSync(filepath));
   }
 
 };
