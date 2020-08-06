@@ -153,7 +153,9 @@ module.exports = {
         privateKeyBuffer
       ]);
     }
-    publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
+    publicKey = Buffer.from(
+      secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1)
+    );
     return "0x" + keccak256(publicKey).slice(-20).toString("hex");
   },
 
