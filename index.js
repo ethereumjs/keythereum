@@ -11,7 +11,7 @@ var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
 var createKeccakHash = require("keccak/js");
-var scrypt = require("scrypt-js")
+var scrypt = require("scrypt-js");
 
 function isFunction(f) {
   return typeof f === "function";
@@ -179,14 +179,19 @@ module.exports = {
    * Used internally.
    */
   deriveKeyUsingScrypt: function (password, salt, options, cb) {
-    var n = options.kdfparams.n || this.constants.scrypt.n
-    var r = options.kdfparams.r || this.constants.scrypt.r
-    var p = options.kdfparams.p || this.constants.scrypt.p
-    var dklen = options.kdfparams.dklen || this.constants.scrypt.dklen
+    var n = options.kdfparams.n || this.constants.scrypt.n;
+    var r = options.kdfparams.r || this.constants.scrypt.r;
+    var p = options.kdfparams.p || this.constants.scrypt.p;
+    var dklen = options.kdfparams.dklen || this.constants.scrypt.dklen;
     if (isFunction(cb)) {
-      scrypt.scrypt(password, salt, n, r, p, dklen).then(key => cb(Buffer.from(key))).catch(cb);
+      scrypt
+        .scrypt(password, salt, n, r, p, dklen)
+        .then(function (key) {
+          cb(Buffer.from(key));
+        })
+        .catch(cb);
     } else {
-      return Buffer.from(scrypt.syncScrypt(password, salt, n, r, p, dklen))
+      return Buffer.from(scrypt.syncScrypt(password, salt, n, r, p, dklen));
     }
   },
 
