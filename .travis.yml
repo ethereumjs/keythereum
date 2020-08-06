@@ -4,23 +4,12 @@ branches:
   only:
     - master
 
-env:
-  - CXX=g++-4.8
-
 node_js:
+  - "14"
+  - "13"
   - "12"
   - "10"
   - "8"
-  - "7"
-  - "6"
-
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - gcc-4.8
-    - g++-4.8
 
 before_script:
   - npm install
