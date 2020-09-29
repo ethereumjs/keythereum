@@ -4,27 +4,16 @@ branches:
   only:
     - master
 
-env:
-  - CXX=g++-4.8
-
 node_js:
+  - "14"
+  - "13"
+  - "12"
+  - "10"
   - "8"
-  - "7"
-  - "6"
-  - "5"
-  - "4"
-
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - gcc-4.8
-    - g++-4.8
 
 before_script:
   - npm install
 
 script:
   - npm run lint
-  - istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage
+  - istanbul cover ./node_modules/mocha/bin/_mocha test/keys.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage

@@ -4,15 +4,14 @@
   "description": "Create, import and export Ethereum keys",
   "main": "index.js",
   "directories": {
-    "test": "test",
-    "lib": "lib"
+    "test": "test"
   },
   "scripts": {
     "test": "mocha test/keys.js",
     "geth": "mocha -R progress test/keys.js && mocha -R progress test/geth.js",
     "lint": "eslint index.js && eslint gulpfile.js && eslint test/*.js",
-    "coverage": "istanbul cover -x **/lib/** ./node_modules/mocha/bin/_mocha test/keys.js",
-    "build": "browserify ./exports.js > ./dist/keythereum.js && uglifyjs ./dist/keythereum.js > ./dist/keythereum.min.js",
+    "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha test/keys.js",
+    "build": "browserify ./exports.js > ./dist/keythereum.js && terser ./dist/keythereum.js > ./dist/keythereum.min.js",
     "build:tests": "browserify test/keys.js > test/browser/bundle.js"
   },
   "repository": {
@@ -27,28 +26,21 @@
   "homepage": "https://github.com/ethereumjs/keythereum#readme",
   "dependencies": {
     "crypto-browserify": "3.12.0",
-    "keccak": "1.4.0",
-    "scrypt": "6.0.3",
-    "secp256k1": "3.5.0",
+    "keccak": "3.0.1",
+    "scrypt-js": "3.0.1",
+    "secp256k1": "4.0.2",
     "sjcl": "1.0.6",
     "uuid": "3.0.0"
   },
   "devDependencies": {
-    "babel-plugin-transform-es3-member-expression-literals": "6.22.0",
-    "babel-plugin-transform-es3-property-literals": "6.22.0",
-    "babel-preset-env": "1.7.0",
-    "babel-preset-stage-0": "6.24.1",
-    "browserify": "16.2.2",
+    "browserify": "16.5.2",
     "chai": "4.1.2",
     "coveralls": "3.0.2",
     "eslint": "4.19.1",
     "geth": "0.2.2",
     "istanbul": "0.4.5",
     "mocha": "5.1.1",
-    "uglify-js": "2.6.1",
+    "terser": "5.0.0",
     "validator": "7.0.0"
-  },
-  "browser": {
-    "scrypt": false
   }
 }
