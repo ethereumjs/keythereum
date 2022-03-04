@@ -11,6 +11,7 @@ var sjcl = require("sjcl");
 var uuid = require("uuid");
 var secp256k1 = require("secp256k1/elliptic");
 var createKeccakHash = require("keccak/js");
+var scrypt = require("scrypt-js");
 
 function isFunction(f) {
   return typeof f === "function";
@@ -86,7 +87,7 @@ module.exports = {
    * not valid hex, base64 will be used.  Otherwise, utf8 will be used.
    * @param {string} str String to be converted.
    * @param {string=} enc Encoding of the input string (optional).
-   * @return {buffer} Buffer (bytearray) containing the input data.
+   * @return {Buffer} Buffer (bytearray) containing the input data.
    */
   str2buf: function (str, enc) {
     if (!str || str.constructor !== String) return str;
@@ -97,7 +98,7 @@ module.exports = {
 
   /**
    * Check if the selected cipher is available.
-   * @param {string} algo Encryption algorithm.
+   * @param {string} cipher Encryption algorithm.
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
@@ -234,11 +235,11 @@ module.exports = {
 
   /**
    * Symmetric private key encryption using secret (derived) key.
-   * @param {buffer|string} plaintext Data to be encrypted.
-   * @param {buffer|string} key Secret key.
-   * @param {buffer|string} iv Initialization vector.
+   * @param {Buffer|string} plaintext Data to be encrypted.
+   * @param {Buffer|string} key Secret key.
+   * @param {Buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {buffer} Encrypted data.
+   * @return {Buffer} Encrypted data.
    */
   encrypt: function (plaintext, key, iv, algo) {
     var cipher, ciphertext;
@@ -251,11 +252,11 @@ module.exports = {
 
   /**
    * Symmetric private key decryption using secret (derived) key.
-   * @param {buffer|string} ciphertext Data to be decrypted.
-   * @param {buffer|string} key Secret key.
-   * @param {buffer|string} iv Initialization vector.
+   * @param {Buffer|string} ciphertext Data to be decrypted.
+   * @param {Buffer|string} key Secret key.
+   * @param {Buffer|string} iv Initialization vector.
    * @param {string=} algo Encryption algorithm (default: constants.cipher).
-   * @return {buffer} Decrypted data.
+   * @return {Buffer} Decrypted data.
    */
   decrypt: function (ciphertext, key, iv, algo) {
     var decipher, plaintext;
@@ -268,7 +269,7 @@ module.exports = {
 
   /**
    * Derive Ethereum address from private key.
-   * @param {buffer|string} privateKey ECDSA private key.
+   * @param {Buffer|string} privateKey ECDSA private key.
    * @return {string} Hex-encoded Ethereum address.
    */
   privateKeyToAddress: function (privateKey) {
@@ -280,7 +281,9 @@ module.exports = {
         privateKeyBuffer
       ]);
     }
-    publicKey = secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1);
+    publicKey = Buffer.from(
+      secp256k1.publicKeyCreate(privateKeyBuffer, false).slice(1)
+    );
     return "0x" + keccak256(publicKey).slice(-20).toString("hex");
   },
 
@@ -289,8 +292,8 @@ module.exports = {
    * encrypted text.  The MAC is the keccak-256 hash of the byte array
    * formed by concatenating the second 16 bytes of the derived key with
    * the ciphertext key's contents.
-   * @param {buffer|string} derivedKey Secret key derived from password.
-   * @param {buffer|string} ciphertext Text encrypted with secret key.
+   * @param {Buffer|string} derivedKey Secret key derived from password.
+   * @param {Buffer|string} ciphertext Text encrypted with secret key.
    * @return {string} Hex-encoded MAC.
    */
   getMAC: function (derivedKey, ciphertext) {
@@ -305,56 +308,33 @@ module.exports = {
   /**
    * Used internally.
    */
-  deriveKeyUsingScryptInNode: function (password, salt, options, cb) {
-    if (!isFunction(cb)) return this.deriveKeyUsingScryptInBrowser(password, salt, options);
-    require("scrypt").hash(password, {
-      N: options.kdfparams.n || this.constants.scrypt.n,
-      r: options.kdfparams.r || this.constants.scrypt.r,
-      p: options.kdfparams.p || this.constants.scrypt.p
-    }, options.kdfparams.dklen || this.constants.scrypt.dklen, salt).then(cb).catch(cb);
-  },
-
-  /**
-   * Used internally.
-   */
-  deriveKeyUsingScryptInBrowser: function (password, salt, options, cb) {
-    var self = this;
-    if (this.scrypt === null) this.scrypt = require("./lib/scrypt");
-    if (isFunction(this.scrypt)) {
-      this.scrypt = this.scrypt(options.kdfparams.memory || this.constants.scrypt.memory);
+  deriveKeyUsingScrypt: function (password, salt, options, cb) {
+    var n = options.kdfparams.n || this.constants.scrypt.n;
+    var r = options.kdfparams.r || this.constants.scrypt.r;
+    var p = options.kdfparams.p || this.constants.scrypt.p;
+    var dklen = options.kdfparams.dklen || this.constants.scrypt.dklen;
+    if (isFunction(cb)) {
+      scrypt
+        .scrypt(password, salt, n, r, p, dklen)
+        .then(function (key) {
+          cb(Buffer.from(key));
+        })
+        .catch(cb);
+    } else {
+      return Buffer.from(scrypt.syncScrypt(password, salt, n, r, p, dklen));
     }
-    if (!isFunction(cb)) {
-      return Buffer.from(this.scrypt.to_hex(this.scrypt.crypto_scrypt(
-        password,
-        salt,
-        options.kdfparams.n || this.constants.scrypt.n,
-        options.kdfparams.r || this.constants.scrypt.r,
-        options.kdfparams.p || this.constants.scrypt.p,
-        options.kdfparams.dklen || this.constants.scrypt.dklen
-      )), "hex");
-    }
-    setTimeout(function () {
-      cb(Buffer.from(self.scrypt.to_hex(self.scrypt.crypto_scrypt(
-        password,
-        salt,
-        options.kdfparams.n || self.constants.scrypt.n,
-        options.kdfparams.r || self.constants.scrypt.r,
-        options.kdfparams.p || self.constants.scrypt.p,
-        options.kdfparams.dklen || self.constants.scrypt.dklen
-      )), "hex"));
-    }, 0);
   },
 
   /**
    * Derive secret key from password with key dervation function.
-   * @param {string|buffer} password User-supplied password.
-   * @param {string|buffer} salt Randomly generated salt.
+   * @param {string|Buffer} password User-supplied password.
+   * @param {string|Buffer} salt Randomly generated salt.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
    * @param {Object=} options.kdfparams KDF parameters (default: constants.<kdf>).
    * @param {function=} cb Callback function (optional).
-   * @return {buffer} Secret key derived from password.
+   * @return {Buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
     var prf, self = this;
@@ -370,8 +350,7 @@ module.exports = {
 
     // use scrypt as key derivation function
     if (options.kdf === "scrypt") {
-      if (!this.browser) return this.deriveKeyUsingScryptInNode(password, salt, options, cb);
-      return this.deriveKeyUsingScryptInBrowser(password, salt, options, cb);
+      return this.deriveKeyUsingScrypt(password, salt, options, cb);
     }
 
     // use default key derivation function (PBKDF2)
@@ -425,7 +404,7 @@ module.exports = {
    * @param {string=} params.keyBytes Private key size in bytes.
    * @param {string=} params.ivBytes Initialization vector size in bytes.
    * @param {function=} cb Callback function (optional).
-   * @return {Object<string,buffer>} Private key, IV and salt.
+   * @return {Object<string,Buffer>} Private key, IV and salt.
    */
   create: function (params, cb) {
     var keyBytes, ivBytes, self = this;
@@ -457,10 +436,10 @@ module.exports = {
 
   /**
    * Assemble key data object in secret-storage format.
-   * @param {buffer} derivedKey Password-derived secret key.
-   * @param {buffer} privateKey Private key.
-   * @param {buffer} salt Randomly generated salt.
-   * @param {buffer} iv Initialization vector.
+   * @param {Buffer} derivedKey Password-derived secret key.
+   * @param {Buffer} privateKey Private key.
+   * @param {Buffer} salt Randomly generated salt.
+   * @param {Buffer} iv Initialization vector.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
@@ -513,10 +492,10 @@ module.exports = {
 
   /**
    * Export private key to keystore secret-storage format.
-   * @param {string|buffer} password User-supplied password.
-   * @param {string|buffer} privateKey Private key.
-   * @param {string|buffer} salt Randomly generated salt.
-   * @param {string|buffer} iv Initialization vector.
+   * @param {string|Buffer} password User-supplied password.
+   * @param {string|Buffer} privateKey Private key.
+   * @param {string|Buffer} salt Randomly generated salt.
+   * @param {string|Buffer} iv Initialization vector.
    * @param {Object=} options Encryption parameters.
    * @param {string=} options.kdf Key derivation function (default: pbkdf2).
    * @param {string=} options.cipher Symmetric cipher (default: constants.cipher).
@@ -542,9 +521,10 @@ module.exports = {
 
   /**
    * Recover plaintext private key from secret-storage key object.
+   * @param {string|Buffer} password User-supplied password.
    * @param {Object} keyObject Keystore object.
    * @param {function=} cb Callback function (optional).
-   * @return {buffer} Plaintext private key.
+   * @return {Buffer} Plaintext private key.
    */
   recover: function (password, keyObject, cb) {
     var keyObjectCrypto, iv, salt, ciphertext, algo, self = this;
