@@ -7,18 +7,20 @@
 
 var isBrowser = typeof process === "undefined" || !process.nextTick || Boolean(process.browser);
 
-var sjcl = require("sjcl");
+var aes = require("browserify-aes");
+var scrypt = require("ethereum-cryptography/scrypt");
+var ecpbkdf2 = require("ethereum-cryptography/pbkdf2");
+var _keccak256 = require("ethereum-cryptography/keccak").keccak256;
+var random = require("ethereum-cryptography/random");
+var secp256k1 = require("ethereum-cryptography/secp256k1-compat");
 var uuid = require("uuid");
-var secp256k1 = require("secp256k1/elliptic");
-var createKeccakHash = require("keccak/js");
-var scrypt = require("scrypt-js");
 
 function isFunction(f) {
   return typeof f === "function";
 }
 
 function keccak256(buffer) {
-  return createKeccakHash("keccak256").update(buffer).digest();
+  return Buffer.from(_keccak256(buffer));
 }
 
 module.exports = {
@@ -29,7 +31,23 @@ module.exports = {
 
   scrypt: null,
 
-  crypto: isBrowser ? require("crypto-browserify") : require("crypto"),
+  crypto: {
+    pbkdf2: function (password, salt, iters, dklen, prf, cb) {
+      setTimeout(function () {
+        ecpbkdf2.pbkdf2(password, salt, iters, dklen, prf).then(function (res) {
+          cb(Buffer.from(res));
+        });
+      }, 0);
+    },
+
+    pbkdf2Sync: function (password, salt, iters, dklen, prf) {
+      return Buffer.from(ecpbkdf2.pbkdf2Sync(password, salt, iters, dklen, prf));
+    },
+
+    randomBytes: function (bytes) {
+      return random.getRandomBytesSync(bytes);
+    }
+  },
 
   constants: {
 
@@ -102,7 +120,7 @@ module.exports = {
    * @return {boolean} If available true, otherwise false.
    */
   isCipherAvailable: function (cipher) {
-    return this.crypto.getCiphers().some(function (name) { return name === cipher; });
+    return aes.getCiphers().some(function (name) { return name === cipher; });
   },
 
   /**
@@ -117,7 +135,7 @@ module.exports = {
     var cipher, ciphertext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    cipher = this.crypto.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    cipher = aes.createCipheriv(algo, this.str2buf(key), this.str2buf(iv));
     ciphertext = cipher.update(this.str2buf(plaintext));
     return Buffer.concat([ciphertext, cipher.final()]);
   },
@@ -134,7 +152,7 @@ module.exports = {
     var decipher, plaintext;
     algo = algo || this.constants.cipher;
     if (!this.isCipherAvailable(algo)) throw new Error(algo + " is not available");
-    decipher = this.crypto.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
+    decipher = aes.createDecipheriv(algo, this.str2buf(key), this.str2buf(iv));
     plaintext = decipher.update(this.str2buf(ciphertext));
     return Buffer.concat([plaintext, decipher.final()]);
   },
@@ -187,13 +205,13 @@ module.exports = {
     var dklen = options.kdfparams.dklen || this.constants.scrypt.dklen;
     if (isFunction(cb)) {
       scrypt
-        .scrypt(password, salt, n, r, p, dklen)
+        .scrypt(password, salt, n, p, r, dklen)
         .then(function (key) {
           cb(Buffer.from(key));
         })
         .catch(cb);
     } else {
-      return Buffer.from(scrypt.syncScrypt(password, salt, n, r, p, dklen));
+      return Buffer.from(scrypt.scryptSync(password, salt, n, p, r, dklen));
     }
   },
 
@@ -209,7 +227,7 @@ module.exports = {
    * @return {Buffer} Secret key derived from password.
    */
   deriveKey: function (password, salt, options, cb) {
-    var prf, self = this;
+    var prf, iters, dklen;
     if (typeof password === "undefined" || password === null || !salt) {
       throw new Error("Must provide password and salt to derive a key");
     }
@@ -228,45 +246,16 @@ module.exports = {
     // use default key derivation function (PBKDF2)
     prf = options.kdfparams.prf || this.constants.pbkdf2.prf;
     if (prf === "hmac-sha256") prf = "sha256";
+    iters = options.kdfparams.c || this.constants.pbkdf2.c;
+    dklen = options.kdfparams.dklen || this.constants.pbkdf2.dklen;
     if (!isFunction(cb)) {
-      if (!this.crypto.pbkdf2Sync) {
-        return Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-          password.toString("utf8"),
-          sjcl.codec.hex.toBits(salt.toString("hex")),
-          options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-        )), "hex");
-      }
-      return this.crypto.pbkdf2Sync(
-        password,
-        salt,
-        options.kdfparams.c || this.constants.pbkdf2.c,
-        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-        prf
-      );
+      return Buffer.from(ecpbkdf2.pbkdf2Sync(password, salt, iters, dklen, prf));
     }
-    if (!this.crypto.pbkdf2) {
-      setTimeout(function () {
-        cb(Buffer.from(sjcl.codec.hex.fromBits(sjcl.misc.pbkdf2(
-          password.toString("utf8"),
-          sjcl.codec.hex.toBits(salt.toString("hex")),
-          options.kdfparams.c || self.constants.pbkdf2.c,
-          (options.kdfparams.dklen || self.constants.pbkdf2.dklen)*8
-        )), "hex"));
-      }, 0);
-    } else {
-      this.crypto.pbkdf2(
-        password,
-        salt,
-        options.kdfparams.c || this.constants.pbkdf2.c,
-        options.kdfparams.dklen || this.constants.pbkdf2.dklen,
-        prf,
-        function (ex, derivedKey) {
-          if (ex) return cb(ex);
-          cb(derivedKey);
-        }
-      );
-    }
+    setTimeout(function () {
+      ecpbkdf2.pbkdf2(password, salt, iters, dklen, prf).then(function (res) {
+        cb(Buffer.from(res));
+      });
+    }, 0);
   },
 
   /**
@@ -285,7 +274,9 @@ module.exports = {
     ivBytes = params.ivBytes || this.constants.ivBytes;
 
     function checkBoundsAndCreateObject(randomBytes) {
-      var privateKey = randomBytes.slice(0, keyBytes);
+      var privateKey;
+      randomBytes = Buffer.from(randomBytes);
+      privateKey = randomBytes.slice(0, keyBytes);
       if (!secp256k1.privateKeyVerify(privateKey)) return self.create(params, cb);
       return {
         privateKey: privateKey,
@@ -296,13 +287,14 @@ module.exports = {
 
     // synchronous key generation if callback not provided
     if (!isFunction(cb)) {
-      return checkBoundsAndCreateObject(this.crypto.randomBytes(keyBytes + ivBytes + keyBytes));
+      return checkBoundsAndCreateObject(random.getRandomBytesSync(keyBytes + ivBytes + keyBytes));
     }
 
     // asynchronous key generation
-    this.crypto.randomBytes(keyBytes + ivBytes + keyBytes, function (err, randomBytes) {
-      if (err) return cb(err);
+    random.getRandomBytes(keyBytes + ivBytes + keyBytes).then(function (randomBytes) {
       cb(checkBoundsAndCreateObject(randomBytes));
+    }, function (err) {
+      cb(err);
     });
   },
 
