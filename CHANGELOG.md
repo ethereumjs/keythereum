@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 (modification: no type change headlines) and this project adheres to
 [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2022-08-03
+
+Maintenance release with various library updates and dependency simplifications.
+
+Note that this version now uses the native JS [BigInt](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) datatype, which is not supported in some older versions of browsers and dev/build tools!
+
+Following Updates:
+
+1. Replaced `crypto-browserify` with `browserify-aes`, which is a dependency of crypto-browserify; without all the unnecessary modules. We are still using `browserify-aes` because the keythereum's related api methods are synchronous - ethereum-cryptography/aes exposes async-only methods.
+2. Replaced `keccak` with `ethereum-cryptography/keccak`
+3. Replaced `scrypt-js` with `ethereum-cryptography/scrypt`
+4. Replaced `secp256k1` with `ethereum-cryptography/secp256k1-compat`
+5. Removed `sjcl` which had pbkdf2 implementation
+6. Updated `uuid` from 3.0.0 to 8.3.2
+7. The package versions are exact, like before - no version ranges
+
+`wc < dist/keythereum.js` output:
+- before `31994  118030  921363`
+- after `15243   63140  484003`
+
+Backwards incompatibilities:
+
+- BigInt support is now required
+- `keythereum.crypto` is now an emulated object instead of `crypto-browserify` stuff
+
+[2.0.0]: https://github.com/ethereumjs/keythereum/compare/v1.2.0...v2.0.0
+
 ## [1.2.0] - 2020-09-29
 
 This is a maintenance release after a longer period with no releases.
